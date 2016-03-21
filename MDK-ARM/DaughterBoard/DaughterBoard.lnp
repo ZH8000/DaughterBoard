@@ -1,0 +1,28 @@
+--cpu Cortex-M4.fp
+"daughterboard\startup_stm32f429xx.o"
+"daughterboard\system_stm32f4xx.o"
+"daughterboard\stm32f4xx_hal_tim.o"
+"daughterboard\stm32f4xx_hal_flash_ramfunc.o"
+"daughterboard\stm32f4xx_hal_dma_ex.o"
+"daughterboard\stm32f4xx_hal_rcc.o"
+"daughterboard\stm32f4xx_hal_rtc_ex.o"
+"daughterboard\stm32f4xx_hal_gpio.o"
+"daughterboard\stm32f4xx_hal.o"
+"daughterboard\stm32f4xx_hal_rtc.o"
+"daughterboard\stm32f4xx_hal_pwr.o"
+"daughterboard\stm32f4xx_hal_rcc_ex.o"
+"daughterboard\stm32f4xx_hal_dma.o"
+"daughterboard\stm32f4xx_hal_flash_ex.o"
+"daughterboard\stm32f4xx_hal_flash.o"
+"daughterboard\stm32f4xx_hal_cortex.o"
+"daughterboard\stm32f4xx_hal_tim_ex.o"
+"daughterboard\stm32f4xx_hal_uart.o"
+"daughterboard\stm32f4xx_hal_pwr_ex.o"
+"daughterboard\main.o"
+"daughterboard\stm32f4xx_hal_msp.o"
+"daughterboard\stm32f4xx_it.o"
+"daughterboard\uarthelper.o"
+--library_type=microlib --strict --scatter "DaughterBoard\DaughterBoard.sct"
+--diag_suppress=L6329 --summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "DaughterBoard.map" -o DaughterBoard\DaughterBoard.axf
