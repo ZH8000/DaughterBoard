@@ -38,26 +38,26 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define TB1_LCR_Pin GPIO_PIN_12
+#define TB0_LCR_Pin GPIO_PIN_12
+#define TB0_LCR_GPIO_Port GPIOB
+#define TB1_LCR_Pin GPIO_PIN_13
 #define TB1_LCR_GPIO_Port GPIOB
-#define TB2_LCR_Pin GPIO_PIN_13
-#define TB2_LCR_GPIO_Port GPIOB
-#define TB1_DETECT_Pin GPIO_PIN_14
+#define TB0_DETECT_Pin GPIO_PIN_14
+#define TB0_DETECT_GPIO_Port GPIOB
+#define TB1_DETECT_Pin GPIO_PIN_15
 #define TB1_DETECT_GPIO_Port GPIOB
-#define TB2_DETECT_Pin GPIO_PIN_15
-#define TB2_DETECT_GPIO_Port GPIOB
-#define TB1_HV_Pin GPIO_PIN_8
+#define TB0_HV_Pin GPIO_PIN_8
+#define TB0_HV_GPIO_Port GPIOD
+#define TB1_HV_Pin GPIO_PIN_9
 #define TB1_HV_GPIO_Port GPIOD
-#define TB2_HV_Pin GPIO_PIN_9
-#define TB2_HV_GPIO_Port GPIOD
-#define TB1_15V_Pin GPIO_PIN_10
+#define TB0_15V_Pin GPIO_PIN_10
+#define TB0_15V_GPIO_Port GPIOD
+#define TB1_15V_Pin GPIO_PIN_11
 #define TB1_15V_GPIO_Port GPIOD
-#define TB2_15V_Pin GPIO_PIN_11
-#define TB2_15V_GPIO_Port GPIOD
-#define TB1_LC_Pin GPIO_PIN_12
+#define TB0_LC_Pin GPIO_PIN_12
+#define TB0_LC_GPIO_Port GPIOD
+#define TB1_LC_Pin GPIO_PIN_13
 #define TB1_LC_GPIO_Port GPIOD
-#define TB2_LC_Pin GPIO_PIN_13
-#define TB2_LC_GPIO_Port GPIOD
 #define ADC_CLK_Pin GPIO_PIN_4
 #define ADC_CLK_GPIO_Port GPIOB
 #define ADC_DATAIN_Pin GPIO_PIN_5

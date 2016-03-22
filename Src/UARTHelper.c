@@ -24,14 +24,14 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 	if (isCorrectCommandFromMB(command)) {
 		UartInterface * uartInterface;
 		
-		if (command[1] == '1' && command[3] == '0') {
+		if (command[1] == '0' && command[3] == '0') {
+			uartInterface = namedUARTInterface.testBoard0MCU0;
+		} else if (command[1] == '0' && command[3] == '1') {
+			uartInterface = namedUARTInterface.testBoard0MCU1;
+		} else if (command[1] == '1' && command[2] == '0') {
 			uartInterface = namedUARTInterface.testBoard1MCU0;
-		} else if (command[1] == '1' && command[3] == '1') {
+		}else if (command[1] == '1' && command[2] == '1') {
 			uartInterface = namedUARTInterface.testBoard1MCU1;
-		} else if (command[1] == '2' && command[2] == '0') {
-			uartInterface = namedUARTInterface.testBoard2MCU0;
-		}else if (command[1] == '2' && command[2] == '1') {
-			uartInterface = namedUARTInterface.testBoard2MCU1;
 		}
 		char * subCommand = command + 4;
 		HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) subCommand, strlen(subCommand), 100);
@@ -40,17 +40,17 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 }
 
 void getWhichTestBoard(UartInterface * sender, int * whichTestBoard, int * whichMCU) {
-	if (sender == namedUARTInterface.testBoard1MCU0) {
-		*whichTestBoard = 1;
+	if (sender == namedUARTInterface.testBoard0MCU0) {
+		*whichTestBoard = 0;
 		*whichMCU = 0;
-	} else if (sender == namedUARTInterface.testBoard1MCU1) {
-		*whichTestBoard = 1;
+	} else if (sender == namedUARTInterface.testBoard0MCU1) {
+		*whichTestBoard = 0;
 		*whichMCU = 1;		
-	} else if (sender == namedUARTInterface.testBoard2MCU0) {
-		*whichTestBoard = 2;
+	} else if (sender == namedUARTInterface.testBoard1MCU0) {
+		*whichTestBoard = 1;
 		*whichMCU = 0;		
-	}	else if (sender == namedUARTInterface.testBoard2MCU1) {
-		*whichTestBoard = 2;
+	}	else if (sender == namedUARTInterface.testBoard1MCU1) {
+		*whichTestBoard = 1;
 		*whichMCU = 1;		
 	}
 }
@@ -81,10 +81,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			
 			int isMainBoard = uartInterface == namedUARTInterface.mainBoard;
 			int isTestBoard = 
+				(uartInterface == namedUARTInterface.testBoard0MCU0) || 
+				(uartInterface == namedUARTInterface.testBoard0MCU1) || 
 				(uartInterface == namedUARTInterface.testBoard1MCU0) || 
-				(uartInterface == namedUARTInterface.testBoard1MCU1) || 
-				(uartInterface == namedUARTInterface.testBoard2MCU0) || 
-				(uartInterface == namedUARTInterface.testBoard2MCU1);
+				(uartInterface == namedUARTInterface.testBoard1MCU1);
 			
 			if (isMainBoard) {
 				processMainBoardCommand(uartInterface->buffer, uartInterface);

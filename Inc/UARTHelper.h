@@ -18,10 +18,10 @@ void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance
 
 typedef struct {
 	UartInterface * mainBoard;
+	UartInterface * testBoard0MCU0;
+	UartInterface * testBoard0MCU1;
 	UartInterface * testBoard1MCU0;
 	UartInterface * testBoard1MCU1;
-	UartInterface * testBoard2MCU0;
-	UartInterface * testBoard2MCU1;
 } NamedUARTInterface;
 
 

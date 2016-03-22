@@ -68,11 +68,11 @@ void initUART(void) {
 	// Define Named UART
 	//namedUARTInterface.mainBoard = &uartInterfaces[1];
 	namedUARTInterface.mainBoard = &uartInterfaces[0];
-	//namedUARTInterface.testBoard1MCU0 = &uartInterfaces[3];
-	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[2];
-	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[4];
-	namedUARTInterface.testBoard2MCU0 = &uartInterfaces[6];
-	namedUARTInterface.testBoard2MCU1 = &uartInterfaces[7];
+	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
+	namedUARTInterface.testBoard0MCU0 = &uartInterfaces[2];
+	namedUARTInterface.testBoard0MCU1 = &uartInterfaces[4];
+	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[6];
+	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[7];
 }
 
 int main(void)
@@ -232,29 +232,29 @@ void MX_GPIO_Init(void)
   __GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TB1_LCR_Pin|TB2_LCR_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, TB1_HV_Pin|TB2_HV_Pin|TB1_15V_Pin|TB2_15V_Pin 
-                          |TB1_LC_Pin|TB2_LC_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
+                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : TB1_LCR_Pin TB2_LCR_Pin */
-  GPIO_InitStruct.Pin = TB1_LCR_Pin|TB2_LCR_Pin;
+  /*Configure GPIO pins : TB0_LCR_Pin TB1_LCR_Pin */
+  GPIO_InitStruct.Pin = TB0_LCR_Pin|TB1_LCR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TB1_DETECT_Pin TB2_DETECT_Pin ADC_CLK_Pin ADC_DATAIN_Pin */
-  GPIO_InitStruct.Pin = TB1_DETECT_Pin|TB2_DETECT_Pin|ADC_CLK_Pin|ADC_DATAIN_Pin;
+  /*Configure GPIO pins : TB0_DETECT_Pin TB1_DETECT_Pin ADC_CLK_Pin ADC_DATAIN_Pin */
+  GPIO_InitStruct.Pin = TB0_DETECT_Pin|TB1_DETECT_Pin|ADC_CLK_Pin|ADC_DATAIN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TB1_HV_Pin TB2_HV_Pin TB1_15V_Pin TB2_15V_Pin 
-                           TB1_LC_Pin TB2_LC_Pin */
-  GPIO_InitStruct.Pin = TB1_HV_Pin|TB2_HV_Pin|TB1_15V_Pin|TB2_15V_Pin 
-                          |TB1_LC_Pin|TB2_LC_Pin;
+  /*Configure GPIO pins : TB0_HV_Pin TB1_HV_Pin TB0_15V_Pin TB1_15V_Pin 
+                           TB0_LC_Pin TB1_LC_Pin */
+  GPIO_InitStruct.Pin = TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
+                          |TB0_LC_Pin|TB1_LC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
