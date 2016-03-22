@@ -16,4 +16,13 @@ void startUARTReceiveDMA(UartInterface * interface);
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance, int baudRate);
 
+typedef struct {
+	UartInterface * mainBoard;
+	UartInterface * testBoard1MCU0;
+	UartInterface * testBoard1MCU1;
+	UartInterface * testBoard2MCU0;
+	UartInterface * testBoard2MCU1;
+} NamedUARTInterface;
+
+
 #endif

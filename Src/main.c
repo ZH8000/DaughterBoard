@@ -52,9 +52,8 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void initUART(void);
 
-
 UartInterface uartInterfaces[8];
-UartInterface * testBoard1 = &uartInterfaces[5];
+NamedUARTInterface namedUARTInterface;
 
 void initUART(void) {
 	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 9600);
@@ -66,6 +65,14 @@ void initUART(void) {
 	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  9600);
 	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  9600);
 	
+	// Define Named UART
+	//namedUARTInterface.mainBoard = &uartInterfaces[1];
+	namedUARTInterface.mainBoard = &uartInterfaces[0];
+	//namedUARTInterface.testBoard1MCU0 = &uartInterfaces[3];
+	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[2];
+	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[4];
+	namedUARTInterface.testBoard2MCU0 = &uartInterfaces[6];
+	namedUARTInterface.testBoard2MCU1 = &uartInterfaces[7];
 }
 
 int main(void)
@@ -95,7 +102,7 @@ int main(void)
 	/*	Infinite loop */
   while (1)
   {
-		HAL_UART_Transmit(&testBoard1->uartHandler, (uint8_t *) "$f$$$\n", strlen("$f$$$\n"), 100);
+		//HAL_UART_Transmit(&uartInterfaces[2].uartHandler, (uint8_t *) "$f$$$\n", strlen("$f$$$\n"), 100);
 		HAL_Delay(1000);
   }
 
