@@ -54,16 +54,18 @@ static void initUART(void);
 
 
 UartInterface uartInterfaces[8];
+UartInterface * testBoard1 = &uartInterfaces[5];
 
 void initUART(void) {
-	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1);
-	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2);
-	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3);
-	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4);
-	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5);
-	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6);
-	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7);
-	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8);
+	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 9600);
+	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 9600);
+	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, 9600);
+	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  9600);
+	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  9600);
+	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, 9600);
+	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  9600);
+	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  9600);
+	
 }
 
 int main(void)
@@ -90,19 +92,11 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[5]);
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
-	char message[100];
-	int count = 0;
 	/*	Infinite loop */
   while (1)
   {
-		memset(message, 0, 100);
-		int TB1_STATE = HAL_GPIO_ReadPin(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin);
-		int TB2_STATE = HAL_GPIO_ReadPin(TB1_DETECT_GPIO_Port, TB2_DETECT_Pin);
-		
-		sprintf(message, "Hello World: %d, %d, %d\r\n", count, TB1_STATE, TB2_STATE);
-		HAL_UART_Transmit(&uartInterfaces[0].uartHandler, (uint8_t *) message, strlen(message), 100);
-		count++;
-		HAL_Delay(500);
+		HAL_UART_Transmit(&testBoard1->uartHandler, (uint8_t *) "$f$$$\n", strlen("$f$$$\n"), 100);
+		HAL_Delay(1000);
   }
 
 }
@@ -231,11 +225,11 @@ void MX_GPIO_Init(void)
   __GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TB1_LCR_Pin|TB2_LCR_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, TB1_LCR_Pin|TB2_LCR_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, TB1_HV_Pin|TB2_HV_Pin|TB1_15V_Pin|TB2_15V_Pin 
-                          |TB1_LC_Pin|TB2_LC_Pin, GPIO_PIN_RESET);
+                          |TB1_LC_Pin|TB2_LC_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : TB1_LCR_Pin TB2_LCR_Pin */
   GPIO_InitStruct.Pin = TB1_LCR_Pin|TB2_LCR_Pin;
