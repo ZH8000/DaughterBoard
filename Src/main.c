@@ -55,6 +55,20 @@ static void initUART(void);
 UartInterface uartInterfaces[8];
 NamedUARTInterface namedUARTInterface;
 
+typedef struct {
+	GPIO_PinState isInserted;
+	char uuid[36];
+} TestBoardStatus;
+
+TestBoardStatus testBoardStatus[2];
+
+void initTestBoardStatus() {
+	testBoardStatus[0].isInserted = GPIO_PIN_RESET;
+	testBoardStatus[1].isInserted = GPIO_PIN_RESET;
+	memset(testBoardStatus[0].uuid, 0, 36);
+	memset(testBoardStatus[1].uuid, 0, 36);
+}
+
 void initUART(void) {
 	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 9600);
 	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 9600);
@@ -75,6 +89,40 @@ void initUART(void) {
 	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[7];
 }
 
+void sendToUART(UartInterface * uartInterface, char * message) {
+	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);	
+}
+
+void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestBoard) {
+	GPIO_PinState newState = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
+	
+	if (newState != testBoardStatus[whichTestBoard].isInserted) {
+		
+		testBoardStatus[whichTestBoard].isInserted = newState;
+
+		if (newState == GPIO_PIN_SET) {
+			char message[100] = {0};
+			sprintf(message, "TestBoard[%d] plugged...\r\n", whichTestBoard);
+			sendToUART(namedUARTInterface.mainBoard, message);
+			if (whichTestBoard == 0) {
+				sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
+			} else if (whichTestBoard == 1) {
+				sendToUART(namedUARTInterface.testBoard1MCU0, "$f$$$\n");				
+			}
+		} else if (newState == GPIO_PIN_RESET) {
+			char message[100] = {0};
+			sprintf(message, "TestBoard[%d] unplugged...\r\n", whichTestBoard);
+			sendToUART(namedUARTInterface.mainBoard, message);
+			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
+			if (whichTestBoard == 0) {
+				sendToUART(namedUARTInterface.mainBoard, "#0#g###\n");
+			} else if (whichTestBoard == 1) {
+				sendToUART(namedUARTInterface.mainBoard, "#1#g###\n");				
+			}
+		}
+	}
+}
+
 int main(void)
 {
 
@@ -90,6 +138,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
+	initTestBoardStatus();
 	initUART();
 	startUARTReceiveDMA(&uartInterfaces[0]);
 	startUARTReceiveDMA(&uartInterfaces[1]);
@@ -103,6 +152,8 @@ int main(void)
   while (1)
   {
 		//HAL_UART_Transmit(&uartInterfaces[2].uartHandler, (uint8_t *) "$f$$$\n", strlen("$f$$$\n"), 100);
+		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
+		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 0);
 		HAL_Delay(1000);
   }
 
