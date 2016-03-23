@@ -89,13 +89,11 @@ void initUART(void) {
 	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[7];
 }
 
-void sendToUART(UartInterface * uartInterface, char * message) {
-	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);	
-}
 
 void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestBoard) {
 	GPIO_PinState newState = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
 	
+	/*
 	if (newState != testBoardStatus[whichTestBoard].isInserted) {
 		
 		testBoardStatus[whichTestBoard].isInserted = newState;
@@ -121,6 +119,7 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 			}
 		}
 	}
+	*/
 }
 
 int main(void)
@@ -151,9 +150,11 @@ int main(void)
 	/*	Infinite loop */
   while (1)
   {
-		//HAL_UART_Transmit(&uartInterfaces[2].uartHandler, (uint8_t *) "$f$$$\n", strlen("$f$$$\n"), 100);
+		//sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
+		/*
 		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
 		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 0);
+		*/
 		HAL_Delay(1000);
   }
 
