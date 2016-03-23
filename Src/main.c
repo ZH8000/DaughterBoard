@@ -55,6 +55,20 @@ static void initUART(void);
 UartInterface uartInterfaces[8];
 NamedUARTInterface namedUARTInterface;
 
+typedef struct {
+	GPIO_PinState isInserted;
+	char uuid[36];
+} TestBoardStatus;
+
+TestBoardStatus testBoardStatus[2];
+
+void initTestBoardStatus() {
+	testBoardStatus[0].isInserted = GPIO_PIN_RESET;
+	testBoardStatus[1].isInserted = GPIO_PIN_RESET;
+	memset(testBoardStatus[0].uuid, 0, 36);
+	memset(testBoardStatus[1].uuid, 0, 36);
+}
+
 void initUART(void) {
 	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 9600);
 	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 9600);
@@ -68,11 +82,46 @@ void initUART(void) {
 	// Define Named UART
 	//namedUARTInterface.mainBoard = &uartInterfaces[1];
 	namedUARTInterface.mainBoard = &uartInterfaces[0];
-	//namedUARTInterface.testBoard1MCU0 = &uartInterfaces[3];
-	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[2];
-	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[4];
-	namedUARTInterface.testBoard2MCU0 = &uartInterfaces[6];
-	namedUARTInterface.testBoard2MCU1 = &uartInterfaces[7];
+	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
+	namedUARTInterface.testBoard0MCU0 = &uartInterfaces[2];
+	namedUARTInterface.testBoard0MCU1 = &uartInterfaces[4];
+	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[6];
+	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[7];
+}
+
+
+void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestBoard) {
+	GPIO_PinState newState = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
+	
+	if (newState != testBoardStatus[whichTestBoard].isInserted) {
+		
+		testBoardStatus[whichTestBoard].isInserted = newState;
+
+		if (newState == GPIO_PIN_SET) {
+			#ifdef DEBUG
+			char message[100] = {0};
+			sprintf(message, "TestBoard[%d] plugged...\r\n", whichTestBoard);
+			sendToUART(namedUARTInterface.mainBoard, message);
+			#endif
+			if (whichTestBoard == 0) {
+				sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
+			} else if (whichTestBoard == 1) {
+				sendToUART(namedUARTInterface.testBoard1MCU0, "$f$$$\n");				
+			}
+		} else if (newState == GPIO_PIN_RESET) {
+			#ifdef DEBUG
+			char message[100] = {0};
+			sprintf(message, "TestBoard[%d] unplugged...\r\n", whichTestBoard);
+			sendToUART(namedUARTInterface.mainBoard, message);
+			#endif
+			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
+			if (whichTestBoard == 0) {
+				sendToUART(namedUARTInterface.mainBoard, "#0#g###\n");
+			} else if (whichTestBoard == 1) {
+				sendToUART(namedUARTInterface.mainBoard, "#1#g###\n");				
+			}
+		}
+	}
 }
 
 int main(void)
@@ -90,6 +139,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
+	initTestBoardStatus();
 	initUART();
 	startUARTReceiveDMA(&uartInterfaces[0]);
 	startUARTReceiveDMA(&uartInterfaces[1]);
@@ -100,9 +150,14 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
 	/*	Infinite loop */
+	HAL_Delay(1000);
   while (1)
   {
-		//HAL_UART_Transmit(&uartInterfaces[2].uartHandler, (uint8_t *) "$f$$$\n", strlen("$f$$$\n"), 100);
+		//sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
+		
+		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
+		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
+		
 		HAL_Delay(1000);
   }
 
@@ -232,29 +287,29 @@ void MX_GPIO_Init(void)
   __GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TB1_LCR_Pin|TB2_LCR_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, TB1_HV_Pin|TB2_HV_Pin|TB1_15V_Pin|TB2_15V_Pin 
-                          |TB1_LC_Pin|TB2_LC_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
+                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : TB1_LCR_Pin TB2_LCR_Pin */
-  GPIO_InitStruct.Pin = TB1_LCR_Pin|TB2_LCR_Pin;
+  /*Configure GPIO pins : TB0_LCR_Pin TB1_LCR_Pin */
+  GPIO_InitStruct.Pin = TB0_LCR_Pin|TB1_LCR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TB1_DETECT_Pin TB2_DETECT_Pin ADC_CLK_Pin ADC_DATAIN_Pin */
-  GPIO_InitStruct.Pin = TB1_DETECT_Pin|TB2_DETECT_Pin|ADC_CLK_Pin|ADC_DATAIN_Pin;
+  /*Configure GPIO pins : TB0_DETECT_Pin TB1_DETECT_Pin ADC_CLK_Pin ADC_DATAIN_Pin */
+  GPIO_InitStruct.Pin = TB0_DETECT_Pin|TB1_DETECT_Pin|ADC_CLK_Pin|ADC_DATAIN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TB1_HV_Pin TB2_HV_Pin TB1_15V_Pin TB2_15V_Pin 
-                           TB1_LC_Pin TB2_LC_Pin */
-  GPIO_InitStruct.Pin = TB1_HV_Pin|TB2_HV_Pin|TB1_15V_Pin|TB2_15V_Pin 
-                          |TB1_LC_Pin|TB2_LC_Pin;
+  /*Configure GPIO pins : TB0_HV_Pin TB1_HV_Pin TB0_15V_Pin TB1_15V_Pin 
+                           TB0_LC_Pin TB1_LC_Pin */
+  GPIO_InitStruct.Pin = TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
+                          |TB0_LC_Pin|TB1_LC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
