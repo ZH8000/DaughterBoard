@@ -93,24 +93,27 @@ void initUART(void) {
 void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestBoard) {
 	GPIO_PinState newState = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
 	
-	/*
 	if (newState != testBoardStatus[whichTestBoard].isInserted) {
 		
 		testBoardStatus[whichTestBoard].isInserted = newState;
 
 		if (newState == GPIO_PIN_SET) {
+			#ifdef DEBUG
 			char message[100] = {0};
 			sprintf(message, "TestBoard[%d] plugged...\r\n", whichTestBoard);
 			sendToUART(namedUARTInterface.mainBoard, message);
+			#endif
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
 			} else if (whichTestBoard == 1) {
 				sendToUART(namedUARTInterface.testBoard1MCU0, "$f$$$\n");				
 			}
 		} else if (newState == GPIO_PIN_RESET) {
+			#ifdef DEBUG
 			char message[100] = {0};
 			sprintf(message, "TestBoard[%d] unplugged...\r\n", whichTestBoard);
 			sendToUART(namedUARTInterface.mainBoard, message);
+			#endif
 			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.mainBoard, "#0#g###\n");
@@ -119,7 +122,6 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 			}
 		}
 	}
-	*/
 }
 
 int main(void)
@@ -148,13 +150,14 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
 	/*	Infinite loop */
+	HAL_Delay(1000);
   while (1)
   {
 		//sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
-		/*
+		
 		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
-		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 0);
-		*/
+		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
+		
 		HAL_Delay(1000);
   }
 
