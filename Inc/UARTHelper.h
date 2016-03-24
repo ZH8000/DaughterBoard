@@ -19,10 +19,8 @@ void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance
 void sendToUART(UartInterface * uartInterface, char * message);
 typedef struct {
 	UartInterface * mainBoard;
-	UartInterface * testBoard0MCU0;
-	UartInterface * testBoard0MCU1;
-	UartInterface * testBoard1MCU0;
-	UartInterface * testBoard1MCU1;
+	UartInterface * testBoard0;
+	UartInterface * testBoard1;
 } NamedUARTInterface;
 
 

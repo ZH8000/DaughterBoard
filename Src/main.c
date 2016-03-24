@@ -83,10 +83,8 @@ void initUART(void) {
 	//namedUARTInterface.mainBoard = &uartInterfaces[1];
 	namedUARTInterface.mainBoard = &uartInterfaces[0];
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
-	namedUARTInterface.testBoard0MCU0 = &uartInterfaces[2];
-	namedUARTInterface.testBoard0MCU1 = &uartInterfaces[4];
-	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[6];
-	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[7];
+	namedUARTInterface.testBoard0 = &uartInterfaces[2];
+	namedUARTInterface.testBoard1 = &uartInterfaces[7];
 }
 
 
@@ -100,18 +98,18 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 		if (newState == GPIO_PIN_SET) {
 			#ifdef DEBUG
 			char message[100] = {0};
-			sprintf(message, "TestBoard[%d] plugged...\r\n", whichTestBoard);
+			sprintf(message, "TestBoard[%d] plugged...\n", whichTestBoard);
 			sendToUART(namedUARTInterface.mainBoard, message);
 			#endif
 			if (whichTestBoard == 0) {
-				sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
+				sendToUART(namedUARTInterface.testBoard0, "$f$$$\n");
 			} else if (whichTestBoard == 1) {
-				sendToUART(namedUARTInterface.testBoard1MCU0, "$f$$$\n");				
+				sendToUART(namedUARTInterface.testBoard1, "$f$$$\n");				
 			}
 		} else if (newState == GPIO_PIN_RESET) {
 			#ifdef DEBUG
 			char message[100] = {0};
-			sprintf(message, "TestBoard[%d] unplugged...\r\n", whichTestBoard);
+			sprintf(message, "TestBoard[%d] unplugged...\n", whichTestBoard);
 			sendToUART(namedUARTInterface.mainBoard, message);
 			#endif
 			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
@@ -153,8 +151,6 @@ int main(void)
 	HAL_Delay(1000);
   while (1)
   {
-		//sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
-		
 		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
 		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
 		
@@ -330,7 +326,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
-    ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    ex: printf("Wrong parameters value: file %s on line %d\n", file, line) */
   /* USER CODE END 6 */
 
 }
