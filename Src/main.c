@@ -107,6 +107,89 @@ void initTestBoardStatus() {
 	memset(testBoardStatus[1].uuid, 0, 36);
 }
 
+int isCorrectCommandFromMB(char * command) {
+	return strlen(command) == 7 &&
+				 (*(command+0) == '$') &&
+				 (*(command+1) == '0' || *(command+1) == '1') &&
+				 (*(command+2) == '$') &&
+				 (*(command+4) == '$') &&
+				 (*(command+6) == '$');
+}
+
+void processMainBoardCommand(char * command, UartInterface * sender) {
+	
+	debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
+	if (isCorrectCommandFromMB(command)) {
+		UartInterface * uartInterface;
+		
+		if (command[1] == '0') {
+			uartInterface = namedUARTInterface.testBoard0;
+		} else if (command[1] == '1') {
+			uartInterface = namedUARTInterface.testBoard1;
+		}
+		
+		char * subCommand = command + 2;
+		sendToUART(uartInterface, subCommand);
+		sendToUART(uartInterface, "\n");
+	}
+	
+}
+
+void processMainBoardResponse(char * response, UartInterface * sender) {
+	debugMessage("GotResponseFromMB: %s\n", response);
+	
+	if (strcmp(response, "#PONG#") == 0) {
+		if (!isMainBoardConnected) {
+			restore15VChannels();
+		}
+		isMainBoardConnected = true;
+		lastMainBoardResponseTick = HAL_GetTick();
+	}
+}
+
+
+int getWhichTestBoard(UartInterface * sender) {
+	if (sender == namedUARTInterface.testBoard0) {
+		return 0;
+	} else if (sender == namedUARTInterface.testBoard1) {
+		return 1;
+	}
+	return -1;
+}
+
+void processTestBoardResponse(char * response, UartInterface * sender) {
+	int whichTestBoard = getWhichTestBoard(sender);
+	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
+	
+	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
+		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
+	}
+}
+
+void processUARTContent() {
+	
+	for (int i = 0; i < 8; i++) {
+		UartInterface * uartInterface = &uartInterfaces[i];
+		if (uartInterface->shouldProcessContent) {
+			uartInterface->shouldProcessContent = false;
+			char * buffer = uartInterface->command;
+			bool isMainBoard = uartInterface == namedUARTInterface.mainBoard;
+			bool isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
+			bool isCommand = strlen(buffer) > 1 && buffer[0] == '$';
+			bool isResponse = strlen(buffer) > 1 && buffer[0] == '#';
+						
+			if (isMainBoard && isCommand) {
+				processMainBoardCommand(buffer, uartInterface);
+			} else if (isMainBoard && isResponse) {
+				processMainBoardResponse(buffer, uartInterface);
+			} else if (isTestBoard && isResponse) {
+				processTestBoardResponse(buffer, uartInterface);				
+			}			
+		}
+
+	}
+}
+
 void initUART(void) {
 	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 115200);
 	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 115200);
@@ -179,16 +262,25 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[7]);
 	/*	Infinite loop */
 	HAL_Delay(1000);
+	uint32_t lastTime = 0;
+	
   while (1)
   {
-		//sendPingToMainBoard();
-		if (isMainBoardLost()) {
-			//shutdownAllChannel();
-			isMainBoardConnected = false;			
+		processUARTContent();
+
+		uint32_t tick = HAL_GetTick();
+		uint32_t round = tick / 1000;
+		
+		if (lastTime != round) {
+			sendPingToMainBoard();
+			if (isMainBoardLost()) {
+				//shutdownAllChannel();
+				isMainBoardConnected = false;			
+			}
+			checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
+			checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);	
 		}
-		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
-		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
-		HAL_Delay(1000);
+		lastTime = round;		
   }
 
 }

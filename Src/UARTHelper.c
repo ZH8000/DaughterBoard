@@ -23,64 +23,6 @@ void sendToUART(UartInterface * uartInterface, char * format, ...) {
 	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);		
 }
 
-int isCorrectCommandFromMB(char * command) {
-	return strlen(command) == 7 &&
-				 (*(command+0) == '$') &&
-				 (*(command+1) == '0' || *(command+1) == '1') &&
-				 (*(command+2) == '$') &&
-				 (*(command+4) == '$') &&
-				 (*(command+6) == '$');
-}
-
-void processMainBoardCommand(char * command, UartInterface * sender) {
-	
-	debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
-	if (isCorrectCommandFromMB(command)) {
-		UartInterface * uartInterface;
-		
-		if (command[1] == '0') {
-			uartInterface = namedUARTInterface.testBoard0;
-		} else if (command[1] == '1') {
-			uartInterface = namedUARTInterface.testBoard1;
-		}
-		
-		char * subCommand = command + 2;
-		sendToUART(uartInterface, subCommand);
-		sendToUART(uartInterface, "\n");
-	}
-	
-}
-
-void processMainBoardResponse(char * response, UartInterface * sender) {
-	debugMessage("GotResponseFromMB: %s\n", response);
-	
-	if (strcmp(response, "#PONG#") == 0) {
-		if (!isMainBoardConnected) {
-			restore15VChannels();
-		}
-		isMainBoardConnected = true;
-		lastMainBoardResponseTick = HAL_GetTick();
-	}
-}
-
-
-int getWhichTestBoard(UartInterface * sender) {
-	if (sender == namedUARTInterface.testBoard0) {
-		return 0;
-	} else if (sender == namedUARTInterface.testBoard1) {
-		return 1;
-	}
-	return -1;
-}
-
-void processTestBoardResponse(char * response, UartInterface * sender) {
-	int whichTestBoard = getWhichTestBoard(sender);
-	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
-	
-	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
-		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
-	}
-}
 
 void startUARTReceiveDMA(UartInterface * interface) {
 	HAL_UART_Receive_DMA(&(interface->uartHandler), &(interface->rxBuffer), 1);	
@@ -88,19 +30,18 @@ void startUARTReceiveDMA(UartInterface * interface) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	
-	//__HAL_UART_FLUSH_DRREGISTER(huart);
+	__HAL_UART_FLUSH_DRREGISTER(huart);
 	uint8_t receiveChar = *(huart->pRxBuffPtr);
 	int whichUART;
 	
 	UartInterface * uartInterface = getUARTInterface(huart, &whichUART);
-	
-	//debugMessage("UARTInterface[%d]: %x, receiveChar: %c\n", whichUART, uartInterface, receiveChar);
-	
+		
 	if (uartInterface != NULL) {
 		if (receiveChar == '\r') {
 			// Ingore CR
 		} else if (receiveChar == '\n') {
 			
+			/*
 			char * buffer = uartInterface->buffer;
 			bool isMainBoard = uartInterface == namedUARTInterface.mainBoard;
 			bool isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
@@ -114,7 +55,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			} else if (isTestBoard && isResponse) {
 				processTestBoardResponse(buffer, uartInterface);				
 			}
+			*/
 			
+			strncpy(uartInterface->command, uartInterface->buffer, 100);
+			uartInterface->shouldProcessContent = true;
 			memset(uartInterface->buffer, 0, 100);
 			uartInterface->bufferCounter = 0;
 			uartInterface->commandCount++;

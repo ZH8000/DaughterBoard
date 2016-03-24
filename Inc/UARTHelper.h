@@ -11,6 +11,8 @@ typedef struct {
 	int commandCount;
 	int bufferCounter;
 	char buffer[100];
+	char command[100];
+	bool shouldProcessContent;
 } UartInterface;
 
 
