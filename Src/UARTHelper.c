@@ -1,12 +1,19 @@
 #include "UARTHelper.h"
 #include <string.h>
+#include <stdarg.h>
 
 extern UartInterface * getUARTInterface(UART_HandleTypeDef *huart, int * whichUART);
 extern UartInterface uartInterfaces[8];
 extern NamedUARTInterface namedUARTInterface;
+extern TestBoardStatus testBoardStatus[2];
 
-void sendToUART(UartInterface * uartInterface, char * message) {
-	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);	
+void sendToUART(UartInterface * uartInterface, char * format, ...) {
+	char message[100] = {0};
+	va_list argptr;
+	va_start(argptr,format);
+	vsnprintf(message, 100, format, argptr);
+	va_end(argptr);
+	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);		
 }
 
 int isCorrectCommandFromMB(char * command) {
@@ -47,10 +54,11 @@ int getWhichTestBoard(UartInterface * sender) {
 
 void processTestBoardCommand(char * command, UartInterface * sender) {
 	int whichTestBoard = getWhichTestBoard(sender);
-	char message[100] = {0};
-	memset(message, 0, 100);
-	sprintf(message, "#%d%s\n", whichTestBoard, command);
-	HAL_UART_Transmit(&namedUARTInterface.mainBoard->uartHandler, (uint8_t *) &message, strlen(message), 100);		
+	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, command);		
+	
+	if (command[0] == '#' && command[1] == 'f' && command[2] == '#' && strlen(command) == 40) {
+		strncpy(testBoardStatus[whichTestBoard].uuid, command + 3, 36);		
+	}
 }
 
 void startUARTReceiveDMA(UartInterface * interface) {

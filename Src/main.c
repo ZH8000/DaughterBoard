@@ -34,6 +34,9 @@
 #include "stm32f4xx_hal.h"
 #include <string.h>
 #include "UARTHelper.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 
 /* Private variables ---------------------------------------------------------*/
@@ -54,17 +57,58 @@ static void initUART(void);
 
 UartInterface uartInterfaces[8];
 NamedUARTInterface namedUARTInterface;
+uint32_t lastMainBoardResponseTick = 0;
+#define MAIN_BOARD_LOST_THRESHOLD		3
+#define DEBUG	1
 
-typedef struct {
-	GPIO_PinState isInserted;
-	char uuid[36];
-} TestBoardStatus;
+
 
 TestBoardStatus testBoardStatus[2];
 
+void sendPingToMainBoard() {
+	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%s$\n", testBoardStatus[0].isInserted, testBoardStatus[0].uuid);
+	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%s$\n", testBoardStatus[1].isInserted, testBoardStatus[1].uuid);
+}
+
+bool isMainBoardLost() {
+	int32_t currentTick = HAL_GetTick();
+	int32_t duration = currentTick - lastMainBoardResponseTick;
+	
+	// 如果 duration 大於 currentTick，代表 HAL_GetTick() 發生了 overflow，超過了
+	// 32bit 無號整數的最大值，計算的方法為先算出 32bit 無號整數的最大值 4294967295
+	// 離 lastMainBoardResponseTick 有多遠，再加上從 overflow 發生的時間點到現在經
+	// 過了多少個 Tick。
+	if (duration > currentTick) {
+		duration = 4294967295 - currentTick + duration;
+	}
+	
+	#ifdef DEBUG
+		sendToUART(namedUARTInterface.mainBoard, "duration:%d, max: %d\n", duration, MAIN_BOARD_LOST_THRESHOLD * 60 * 1000);	
+	#endif
+	
+	return duration > MAIN_BOARD_LOST_THRESHOLD * 60 * 1000;
+}
+
+void shutdownAllChannel() {
+	#ifdef DEBUG
+		sendToUART(namedUARTInterface.mainBoard, "SHUT DOWN ALL CHANNEL\n");
+	#endif
+  HAL_GPIO_WritePin(
+		GPIOB, 
+		TB0_LCR_Pin|TB1_LCR_Pin, 
+		GPIO_PIN_RESET
+	);
+
+  HAL_GPIO_WritePin(
+		GPIOD, 
+		TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin|TB0_LC_Pin|TB1_LC_Pin, 
+		GPIO_PIN_RESET
+	);
+}
+
 void initTestBoardStatus() {
-	testBoardStatus[0].isInserted = GPIO_PIN_RESET;
-	testBoardStatus[1].isInserted = GPIO_PIN_RESET;
+	testBoardStatus[0].isInserted = false;
+	testBoardStatus[1].isInserted = false;
 	memset(testBoardStatus[0].uuid, 0, 36);
 	memset(testBoardStatus[1].uuid, 0, 36);
 }
@@ -97,9 +141,7 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 
 		if (newState == GPIO_PIN_SET) {
 			#ifdef DEBUG
-			char message[100] = {0};
-			sprintf(message, "TestBoard[%d] plugged...\n", whichTestBoard);
-			sendToUART(namedUARTInterface.mainBoard, message);
+			sendToUART(namedUARTInterface.mainBoard, "TestBoard[%d] plugged...\n", whichTestBoard);
 			#endif
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.testBoard0, "$f$$$\n");
@@ -108,9 +150,7 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 			}
 		} else if (newState == GPIO_PIN_RESET) {
 			#ifdef DEBUG
-			char message[100] = {0};
-			sprintf(message, "TestBoard[%d] unplugged...\n", whichTestBoard);
-			sendToUART(namedUARTInterface.mainBoard, message);
+			sendToUART(namedUARTInterface.mainBoard, "TestBoard[%d] unplugged...\n", whichTestBoard);
 			#endif
 			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
 			if (whichTestBoard == 0) {
@@ -151,9 +191,12 @@ int main(void)
 	HAL_Delay(1000);
   while (1)
   {
+		//sendPingToMainBoard();
+		if (isMainBoardLost()) {
+			shutdownAllChannel();
+		}
 		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
 		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
-		
 		HAL_Delay(1000);
   }
 
