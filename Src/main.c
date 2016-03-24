@@ -171,6 +171,8 @@ void processUARTContent() {
 	for (int i = 0; i < 8; i++) {
 		UartInterface * uartInterface = &uartInterfaces[i];
 		if (uartInterface->shouldProcessContent) {
+			//debugMessage("UART[%d].shouldProcess = %d, data = %s\n", i, uartInterface->shouldProcessContent, uartInterface->command);
+			
 			uartInterface->shouldProcessContent = false;
 			char * buffer = uartInterface->command;
 			bool isMainBoard = uartInterface == namedUARTInterface.mainBoard;
@@ -184,7 +186,8 @@ void processUARTContent() {
 				processMainBoardResponse(buffer, uartInterface);
 			} else if (isTestBoard && isResponse) {
 				processTestBoardResponse(buffer, uartInterface);				
-			}			
+			}
+			memset(uartInterface->command, 0, 100);
 		}
 
 	}
@@ -206,6 +209,13 @@ void initUART(void) {
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
 	namedUARTInterface.testBoard0 = &uartInterfaces[2];
 	namedUARTInterface.testBoard1 = &uartInterfaces[7];
+	
+	for (int i = 0; i < 8; i++) {
+		memset(uartInterfaces[i].buffer, 0, 100);
+		memset(uartInterfaces[i].command, 0, 100);
+		
+	}
+	
 }
 
 
@@ -271,7 +281,8 @@ int main(void)
 		uint32_t tick = HAL_GetTick();
 		uint32_t round = tick / 1000;
 		
-		if (lastTime != round) {
+		if (lastTime != round && round % 5 == 0) {
+			debugMessage("round:%d\n", round);
 			sendPingToMainBoard();
 			if (isMainBoardLost()) {
 				//shutdownAllChannel();

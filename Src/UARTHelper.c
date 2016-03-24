@@ -57,6 +57,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			}
 			*/
 			
+			
 			strncpy(uartInterface->command, uartInterface->buffer, 100);
 			uartInterface->shouldProcessContent = true;
 			memset(uartInterface->buffer, 0, 100);
