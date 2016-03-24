@@ -1,11 +1,7 @@
 #include "UARTHelper.h"
 #include <string.h>
 #include <stdarg.h>
-
-extern UartInterface * getUARTInterface(UART_HandleTypeDef *huart, int * whichUART);
-extern UartInterface uartInterfaces[8];
-extern NamedUARTInterface namedUARTInterface;
-extern TestBoardStatus testBoardStatus[2];
+#include "global.h"
 
 void sendToUART(UartInterface * uartInterface, char * format, ...) {
 	char message[100] = {0};
