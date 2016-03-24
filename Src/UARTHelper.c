@@ -3,6 +3,17 @@
 #include <stdarg.h>
 #include "global.h"
 
+void debugMessage(char * format, ...) {
+	#ifdef DEBUG
+		char message[100] = {0};
+		va_list argptr;
+		va_start(argptr,format);
+		vsnprintf(message, 100, format, argptr);
+		va_end(argptr);
+		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), 100);		
+	#endif
+}
+
 void sendToUART(UartInterface * uartInterface, char * format, ...) {
 	char message[100] = {0};
 	va_list argptr;
@@ -23,6 +34,7 @@ int isCorrectCommandFromMB(char * command) {
 
 void processMainBoardCommand(char * command, UartInterface * sender) {
 	
+	debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
 	if (isCorrectCommandFromMB(command)) {
 		UartInterface * uartInterface;
 		
@@ -39,6 +51,19 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 	
 }
 
+void processMainBoardResponse(char * response, UartInterface * sender) {
+	debugMessage("GotResponseFromMB: %s\n", response);
+	
+	if (strcmp(response, "#PONG#") == 0) {
+		if (!isMainBoardConnected) {
+			restore15VChannels();
+		}
+		isMainBoardConnected = true;
+		lastMainBoardResponseTick = HAL_GetTick();
+	}
+}
+
+
 int getWhichTestBoard(UartInterface * sender) {
 	if (sender == namedUARTInterface.testBoard0) {
 		return 0;
@@ -48,12 +73,12 @@ int getWhichTestBoard(UartInterface * sender) {
 	return -1;
 }
 
-void processTestBoardCommand(char * command, UartInterface * sender) {
+void processTestBoardResponse(char * response, UartInterface * sender) {
 	int whichTestBoard = getWhichTestBoard(sender);
-	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, command);		
+	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
 	
-	if (command[0] == '#' && command[1] == 'f' && command[2] == '#' && strlen(command) == 40) {
-		strncpy(testBoardStatus[whichTestBoard].uuid, command + 3, 36);		
+	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
+		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
 	}
 }
 
@@ -69,18 +94,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	
 	UartInterface * uartInterface = getUARTInterface(huart, &whichUART);
 	
+	//debugMessage("UARTInterface[%d]: %x, receiveChar: %c\n", whichUART, uartInterface, receiveChar);
+	
 	if (uartInterface != NULL) {
 		if (receiveChar == '\r') {
 			// Ingore CR
 		} else if (receiveChar == '\n') {
 			
-			int isMainBoard = uartInterface == namedUARTInterface.mainBoard;
-			int isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
-			
-			if (isMainBoard) {
-				processMainBoardCommand(uartInterface->buffer, uartInterface);
-			} else if (isTestBoard) {
-				processTestBoardCommand(uartInterface->buffer, uartInterface);				
+			char * buffer = uartInterface->buffer;
+			bool isMainBoard = uartInterface == namedUARTInterface.mainBoard;
+			bool isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
+			bool isCommand = strlen(buffer) > 1 && buffer[0] == '$';
+			bool isResponse = strlen(buffer) > 1 && buffer[0] == '#';
+						
+			if (isMainBoard && isCommand) {
+				processMainBoardCommand(buffer, uartInterface);
+			} else if (isMainBoard && isResponse) {
+				processMainBoardResponse(buffer, uartInterface);
+			} else if (isTestBoard && isResponse) {
+				processTestBoardResponse(buffer, uartInterface);				
 			}
 			
 			memset(uartInterface->buffer, 0, 100);

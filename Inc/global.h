@@ -4,8 +4,9 @@
 #include "UARTHelper.h"
 #include <stdbool.h>
 
-#define MAIN_BOARD_LOST_THRESHOLD		3
+#define MAIN_BOARD_LOST_THRESHOLD		1
 #define DEBUG												1
+#define DEBUG_UART					namedUARTInterface.mainBoard
 
 typedef struct {
 	UartInterface * mainBoard;
@@ -16,6 +17,7 @@ typedef struct {
 typedef struct {
 	bool isInserted;
 	char uuid[36];
+	bool isHVOK;
 } TestBoardStatus;
 
 extern UartInterface uartInterfaces[8];
@@ -23,5 +25,6 @@ extern NamedUARTInterface namedUARTInterface;
 extern uint32_t lastMainBoardResponseTick;
 extern TestBoardStatus testBoardStatus[2];
 extern UartInterface * getUARTInterface(UART_HandleTypeDef *huart, int * whichUART);
-
+extern bool isMainBoardConnected;
+extern void restore15VChannels(void);
 #endif

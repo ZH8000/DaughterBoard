@@ -65,6 +65,7 @@ void sendPingToMainBoard() {
 	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%s$\n", testBoardStatus[1].isInserted, testBoardStatus[1].uuid);
 }
 
+
 bool isMainBoardLost() {
 	int32_t currentTick = HAL_GetTick();
 	int32_t duration = currentTick - lastMainBoardResponseTick;
@@ -77,46 +78,44 @@ bool isMainBoardLost() {
 		duration = 4294967295 - currentTick + duration;
 	}
 	
-	#ifdef DEBUG
-		sendToUART(namedUARTInterface.mainBoard, "duration:%d, max: %d\n", duration, MAIN_BOARD_LOST_THRESHOLD * 60 * 1000);	
-	#endif
+	debugMessage(
+		"currentTick(%u) - lastTick(%u) = %d / %d\n", 
+		currentTick, 
+		lastMainBoardResponseTick, 
+		duration, 
+		MAIN_BOARD_LOST_THRESHOLD * 60 * 1000
+	);
 	
 	return duration > MAIN_BOARD_LOST_THRESHOLD * 60 * 1000;
 }
 
 void shutdownAllChannel() {
-	#ifdef DEBUG
-		sendToUART(namedUARTInterface.mainBoard, "SHUT DOWN ALL CHANNEL\n");
-	#endif
-  HAL_GPIO_WritePin(
-		GPIOB, 
-		TB0_LCR_Pin|TB1_LCR_Pin, 
-		GPIO_PIN_RESET
-	);
-
-  HAL_GPIO_WritePin(
-		GPIOD, 
-		TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin|TB0_LC_Pin|TB1_LC_Pin, 
-		GPIO_PIN_RESET
-	);
+	
+	if (isMainBoardConnected) {
+		debugMessage("SHUT DOWN ALL CHANNEL\n");
+		HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin|TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
+	}
 }
 
 void initTestBoardStatus() {
 	testBoardStatus[0].isInserted = false;
 	testBoardStatus[1].isInserted = false;
+	testBoardStatus[0].isHVOK = false;
+	testBoardStatus[1].isHVOK = false;
 	memset(testBoardStatus[0].uuid, 0, 36);
 	memset(testBoardStatus[1].uuid, 0, 36);
 }
 
 void initUART(void) {
-	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 9600);
-	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 9600);
-	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, 9600);
-	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  9600);
-	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  9600);
-	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, 9600);
-	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  9600);
-	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  9600);
+	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 115200);
+	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 115200);
+	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, 115200);
+	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  115200);
+	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  115200);
+	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, 115200);
+	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  115200);
+	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  115200);
 	
 	// Define Named UART
 	//namedUARTInterface.mainBoard = &uartInterfaces[1];
@@ -135,18 +134,14 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 		testBoardStatus[whichTestBoard].isInserted = newState;
 
 		if (newState == GPIO_PIN_SET) {
-			#ifdef DEBUG
-			sendToUART(namedUARTInterface.mainBoard, "TestBoard[%d] plugged...\n", whichTestBoard);
-			#endif
+			debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.testBoard0, "$f$$$\n");
 			} else if (whichTestBoard == 1) {
 				sendToUART(namedUARTInterface.testBoard1, "$f$$$\n");				
 			}
 		} else if (newState == GPIO_PIN_RESET) {
-			#ifdef DEBUG
-			sendToUART(namedUARTInterface.mainBoard, "TestBoard[%d] unplugged...\n", whichTestBoard);
-			#endif
+			debugMessage("TestBoard[%d] unplugged...\n", whichTestBoard);
 			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.mainBoard, "#0#g###\n");
@@ -188,7 +183,8 @@ int main(void)
   {
 		//sendPingToMainBoard();
 		if (isMainBoardLost()) {
-			shutdownAllChannel();
+			//shutdownAllChannel();
+			isMainBoardConnected = false;			
 		}
 		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
 		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
@@ -284,11 +280,11 @@ void MX_GPIO_Init(void)
   __GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
-                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_SET);
+                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : TB0_LCR_Pin TB1_LCR_Pin */
   GPIO_InitStruct.Pin = TB0_LCR_Pin|TB1_LCR_Pin;
