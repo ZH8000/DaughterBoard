@@ -6,7 +6,8 @@
 
 #define MAIN_BOARD_LOST_THRESHOLD		1
 #define DEBUG												1
-#define DEBUG_UART					namedUARTInterface.mainBoard
+#define DEBUG_UART									namedUARTInterface.mainBoard
+#define BAUD_RATE										9600
 
 typedef struct {
 	UartInterface * mainBoard;
@@ -24,7 +25,6 @@ extern UartInterface uartInterfaces[8];
 extern NamedUARTInterface namedUARTInterface;
 extern uint32_t lastMainBoardResponseTick;
 extern TestBoardStatus testBoardStatus[2];
-extern UartInterface * getUARTInterface(UART_HandleTypeDef *huart, int * whichUART);
 extern bool isMainBoardConnected;
 extern void restore15VChannels(void);
 #endif

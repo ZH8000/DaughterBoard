@@ -510,6 +510,11 @@
               <FileType>1</FileType>
               <FilePath>..\Src\global.c</FilePath>
             </File>
+            <File>
+              <FileName>UARTHandler.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\UARTHandler.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -1,7 +1,20 @@
-#include "UARTHelper.h"
 #include <string.h>
 #include <stdarg.h>
 #include "global.h"
+#include "UARTHelper.h"
+
+void processUARTContent(UartContentCallback callback) {
+
+	for (int i = 0; i < 8; i++) {
+		UartInterface * uartInterface = &uartInterfaces[i];
+		if (uartInterface->shouldProcessContent) {			
+			callback(uartInterface, uartInterface->content);			
+			uartInterface->shouldProcessContent = false;			
+			memset(uartInterface->content, 0, 100);
+		}
+
+	}
+}
 
 void debugMessage(char * format, ...) {
 	#ifdef DEBUG
@@ -24,52 +37,39 @@ void sendToUART(UartInterface * uartInterface, char * format, ...) {
 }
 
 
-void startUARTReceiveDMA(UartInterface * interface) {
-	HAL_UART_Receive_DMA(&(interface->uartHandler), &(interface->rxBuffer), 1);	
+void startUARTReceiveDMA(UartInterface * uartInterface) {
+	int retries = 0;
+	HAL_StatusTypeDef status = HAL_UART_Receive_DMA(&(uartInterface->uartHandler), &(uartInterface->rxBuffer), 1);
+	
+	while (status != HAL_OK && retries < 10) {
+		uartInterface->busyCount++;
+		HAL_UART_DeInit(&(uartInterface->uartHandler));
+		HAL_UART_Init(&(uartInterface->uartHandler));
+		status = HAL_UART_Receive_DMA(&(uartInterface->uartHandler), &(uartInterface->rxBuffer), 1);
+	}
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	
-	__HAL_UART_FLUSH_DRREGISTER(huart);
-	uint8_t receiveChar = *(huart->pRxBuffPtr);
-	int whichUART;
+	//__HAL_UART_FLUSH_DRREGISTER(huart);
+	UartInterface * uartInterface = getUARTInterface(huart);
+	uartInterface->receivedBytes++;
 	
-	UartInterface * uartInterface = getUARTInterface(huart, &whichUART);
-		
 	if (uartInterface != NULL) {
-		if (receiveChar == '\r') {
-			// Ingore CR
-		} else if (receiveChar == '\n') {
-			
-			/*
-			char * buffer = uartInterface->buffer;
-			bool isMainBoard = uartInterface == namedUARTInterface.mainBoard;
-			bool isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
-			bool isCommand = strlen(buffer) > 1 && buffer[0] == '$';
-			bool isResponse = strlen(buffer) > 1 && buffer[0] == '#';
-						
-			if (isMainBoard && isCommand) {
-				processMainBoardCommand(buffer, uartInterface);
-			} else if (isMainBoard && isResponse) {
-				processMainBoardResponse(buffer, uartInterface);
-			} else if (isTestBoard && isResponse) {
-				processTestBoardResponse(buffer, uartInterface);				
-			}
-			*/
-			
-			
-			strncpy(uartInterface->command, uartInterface->buffer, 100);
+		
+		uint8_t receiveChar = *(huart->pRxBuffPtr);
+		
+		if (receiveChar == '\n') {
+			strncpy(uartInterface->content, uartInterface->buffer, 100);
 			uartInterface->shouldProcessContent = true;
 			memset(uartInterface->buffer, 0, 100);
 			uartInterface->bufferCounter = 0;
-			uartInterface->commandCount++;
 		} else {
 			uartInterface->buffer[uartInterface->bufferCounter] = receiveChar;
 			uartInterface->bufferCounter++;
 		}
+		startUARTReceiveDMA(uartInterface);	
 	}
-
-	HAL_UART_Receive_DMA(huart, huart->pRxBuffPtr, 1);	
 }
 
 void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance, int baudRate)

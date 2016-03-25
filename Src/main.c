@@ -31,13 +31,14 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_hal.h"
 #include <string.h>
-#include "UARTHelper.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include "global.h"
+#include "stm32f4xx_hal.h"
+#include "UARTHelper.h"
+#include "UARTHandler.h"
 
 
 /* Private variables ---------------------------------------------------------*/
@@ -55,10 +56,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void initUART(void);
-
-
-
-
 
 void sendPingToMainBoard() {
 	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%s$\n", testBoardStatus[0].isInserted, testBoardStatus[0].uuid);
@@ -78,6 +75,7 @@ bool isMainBoardLost() {
 		duration = 4294967295 - currentTick + duration;
 	}
 	
+	/*
 	debugMessage(
 		"currentTick(%u) - lastTick(%u) = %d / %d\n", 
 		currentTick, 
@@ -85,6 +83,7 @@ bool isMainBoardLost() {
 		duration, 
 		MAIN_BOARD_LOST_THRESHOLD * 60 * 1000
 	);
+	*/
 	
 	return duration > MAIN_BOARD_LOST_THRESHOLD * 60 * 1000;
 }
@@ -107,113 +106,29 @@ void initTestBoardStatus() {
 	memset(testBoardStatus[1].uuid, 0, 36);
 }
 
-int isCorrectCommandFromMB(char * command) {
-	return strlen(command) == 7 &&
-				 (*(command+0) == '$') &&
-				 (*(command+1) == '0' || *(command+1) == '1') &&
-				 (*(command+2) == '$') &&
-				 (*(command+4) == '$') &&
-				 (*(command+6) == '$');
-}
-
-void processMainBoardCommand(char * command, UartInterface * sender) {
-	
-	debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
-	if (isCorrectCommandFromMB(command)) {
-		UartInterface * uartInterface;
-		
-		if (command[1] == '0') {
-			uartInterface = namedUARTInterface.testBoard0;
-		} else if (command[1] == '1') {
-			uartInterface = namedUARTInterface.testBoard1;
-		}
-		
-		char * subCommand = command + 2;
-		sendToUART(uartInterface, subCommand);
-		sendToUART(uartInterface, "\n");
-	}
-	
-}
-
-void processMainBoardResponse(char * response, UartInterface * sender) {
-	debugMessage("GotResponseFromMB: %s\n", response);
-	
-	if (strcmp(response, "#PONG#") == 0) {
-		if (!isMainBoardConnected) {
-			restore15VChannels();
-		}
-		isMainBoardConnected = true;
-		lastMainBoardResponseTick = HAL_GetTick();
-	}
-}
-
-
-int getWhichTestBoard(UartInterface * sender) {
-	if (sender == namedUARTInterface.testBoard0) {
-		return 0;
-	} else if (sender == namedUARTInterface.testBoard1) {
-		return 1;
-	}
-	return -1;
-}
-
-void processTestBoardResponse(char * response, UartInterface * sender) {
-	int whichTestBoard = getWhichTestBoard(sender);
-	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
-	
-	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
-		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
-	}
-}
-
-void processUARTContent() {
-	
-	for (int i = 0; i < 8; i++) {
-		UartInterface * uartInterface = &uartInterfaces[i];
-		if (uartInterface->shouldProcessContent) {
-			//debugMessage("UART[%d].shouldProcess = %d, data = %s\n", i, uartInterface->shouldProcessContent, uartInterface->command);
-			
-			uartInterface->shouldProcessContent = false;
-			char * buffer = uartInterface->command;
-			bool isMainBoard = uartInterface == namedUARTInterface.mainBoard;
-			bool isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
-			bool isCommand = strlen(buffer) > 1 && buffer[0] == '$';
-			bool isResponse = strlen(buffer) > 1 && buffer[0] == '#';
-						
-			if (isMainBoard && isCommand) {
-				processMainBoardCommand(buffer, uartInterface);
-			} else if (isMainBoard && isResponse) {
-				processMainBoardResponse(buffer, uartInterface);
-			} else if (isTestBoard && isResponse) {
-				processTestBoardResponse(buffer, uartInterface);				
-			}
-			memset(uartInterface->command, 0, 100);
-		}
-
-	}
-}
 
 void initUART(void) {
-	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 115200);
-	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 115200);
-	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, 115200);
-	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  115200);
-	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  115200);
-	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, 115200);
-	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  115200);
-	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  115200);
+	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  BAUD_RATE);
 	
 	// Define Named UART
 	//namedUARTInterface.mainBoard = &uartInterfaces[1];
 	namedUARTInterface.mainBoard = &uartInterfaces[0];
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
 	namedUARTInterface.testBoard0 = &uartInterfaces[2];
-	namedUARTInterface.testBoard1 = &uartInterfaces[7];
+	namedUARTInterface.testBoard1 = &uartInterfaces[5];
 	
 	for (int i = 0; i < 8; i++) {
+		uartInterfaces[i].busyCount = 0;
+		uartInterfaces[i].receivedBytes = 0;
 		memset(uartInterfaces[i].buffer, 0, 100);
-		memset(uartInterfaces[i].command, 0, 100);
-		
+		memset(uartInterfaces[i].content, 0, 100);
 	}
 	
 }
@@ -276,13 +191,25 @@ int main(void)
 	
   while (1)
   {
-		processUARTContent();
+		processUARTContent(uartReceiverCallback);
 
 		uint32_t tick = HAL_GetTick();
 		uint32_t round = tick / 1000;
 		
-		if (lastTime != round && round % 5 == 0) {
-			debugMessage("round:%d\n", round);
+		if (lastTime != round) {
+			debugMessage(
+				"mainBoard [%d] {receivedBytes: %u, busyCount: %u}\n", 
+				round, namedUARTInterface.mainBoard->receivedBytes, namedUARTInterface.mainBoard->busyCount
+			);
+			debugMessage(
+				"testBoard0[%d] {receivedBytes: %u, busyCount: %u}\n", 
+				round, namedUARTInterface.testBoard0->receivedBytes, namedUARTInterface.testBoard0->busyCount
+			);
+			debugMessage(
+				"testBoard1[%d] {receivedBytes: %u, busyCount: %u}\n", 
+				round, namedUARTInterface.testBoard1->receivedBytes, namedUARTInterface.testBoard1->busyCount
+			);
+			
 			sendPingToMainBoard();
 			if (isMainBoardLost()) {
 				//shutdownAllChannel();
