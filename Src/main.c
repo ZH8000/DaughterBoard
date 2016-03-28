@@ -58,8 +58,8 @@ static void MX_DMA_Init(void);
 static void initUART(void);
 
 void sendPingToMainBoard() {
-	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%s$\n", testBoardStatus[0].isInserted, testBoardStatus[0].uuid);
-	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%s$\n", testBoardStatus[1].isInserted, testBoardStatus[1].uuid);
+	sendToUART(namedUARTInterface.mainBoard, "$PING$0$%d$%s$\n", testBoardStatus[0].isInserted, testBoardStatus[0].uuid);
+	sendToUART(namedUARTInterface.mainBoard, "$PING$1$%d$%s$\n", testBoardStatus[1].isInserted, testBoardStatus[1].uuid);
 }
 
 
@@ -119,7 +119,7 @@ void initUART(void) {
 	
 	// Define Named UART
 	//namedUARTInterface.mainBoard = &uartInterfaces[1];
-	namedUARTInterface.mainBoard = &uartInterfaces[0];
+	namedUARTInterface.mainBoard = &uartInterfaces[1];
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
 	namedUARTInterface.testBoard0 = &uartInterfaces[2];
 	namedUARTInterface.testBoard1 = &uartInterfaces[5];
@@ -192,11 +192,14 @@ int main(void)
   while (1)
   {
 		processUARTContent(uartReceiverCallback);
+		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
+		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);	
 
 		uint32_t tick = HAL_GetTick();
 		uint32_t round = tick / 1000;
 		
 		if (lastTime != round) {
+			/*
 			debugMessage(
 				"mainBoard [%d] {receivedBytes: %u, busyCount: %u}\n", 
 				round, namedUARTInterface.mainBoard->receivedBytes, namedUARTInterface.mainBoard->busyCount
@@ -209,14 +212,13 @@ int main(void)
 				"testBoard1[%d] {receivedBytes: %u, busyCount: %u}\n", 
 				round, namedUARTInterface.testBoard1->receivedBytes, namedUARTInterface.testBoard1->busyCount
 			);
+			*/
 			
 			sendPingToMainBoard();
 			if (isMainBoardLost()) {
 				//shutdownAllChannel();
 				isMainBoardConnected = false;			
 			}
-			checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
-			checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);	
 		}
 		lastTime = round;		
   }

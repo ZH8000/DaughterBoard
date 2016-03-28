@@ -57,8 +57,7 @@ int getWhichTestBoard(UartInterface * sender) {
 void processTestBoardResponse(char * response, UartInterface * sender) {
 	int whichTestBoard = getWhichTestBoard(sender);
 	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
-	
-	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
+	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 41) {
 		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
 	}
 }
