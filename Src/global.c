@@ -1,16 +1,3 @@
-
-/*
-UartInterface uartInterfaces[8];
-NamedUARTInterface namedUARTInterface;
-uint32_t lastMainBoardResponseTick = 0;
-#define MAIN_BOARD_LOST_THRESHOLD		3
-#define DEBUG	
-
-
-
-TestBoardStatus testBoardStatus[2];
-*/
-
 #include "global.h"
 
 UartInterface uartInterfaces[8];

@@ -24,7 +24,6 @@ void debugMessage(char * format, ...) {
 		vsnprintf(message, 100, format, argptr);
 		va_end(argptr);
 		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), 100);		
-		HAL_Delay(100);
 	#endif
 }
 
@@ -35,7 +34,6 @@ void sendToUART(UartInterface * uartInterface, char * format, ...) {
 	vsnprintf(message, 100, format, argptr);
 	va_end(argptr);
 	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);		
-	HAL_Delay(100);	
 }
 
 

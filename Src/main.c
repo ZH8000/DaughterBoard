@@ -57,9 +57,8 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void initUART(void);
 
-void sendPingToMainBoard() {
-	sendToUART(namedUARTInterface.mainBoard, "$PING$0$%d$%s$\n", testBoardStatus[0].isInserted, testBoardStatus[0].uuid);
-	sendToUART(namedUARTInterface.mainBoard, "$PING$1$%d$%s$\n", testBoardStatus[1].isInserted, testBoardStatus[1].uuid);
+void sendPingToMainBoard(int i) {
+	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%d$%s$\n", i, testBoardStatus[i].isInserted, testBoardStatus[i].uuid);
 }
 
 
@@ -118,7 +117,7 @@ void initUART(void) {
 	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  BAUD_RATE);
 	
 	// Define Named UART
-	//namedUARTInterface.mainBoard = &uartInterfaces[1];
+	//namedUARTInterface.mainBoard = &uartInterfaces[0];
 	namedUARTInterface.mainBoard = &uartInterfaces[1];
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
 	namedUARTInterface.testBoard0 = &uartInterfaces[2];
@@ -186,6 +185,7 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
 	/*	Infinite loop */
+	HAL_GPIO_WritePin(GPIOD, TB0_15V_Pin|TB1_15V_Pin, GPIO_PIN_SET);
 	HAL_Delay(1000);
 	uint32_t lastTime = 0;
 	
@@ -213,8 +213,12 @@ int main(void)
 				round, namedUARTInterface.testBoard1->receivedBytes, namedUARTInterface.testBoard1->busyCount
 			);
 			*/
+			if (round % 10 == 0) {
+				sendPingToMainBoard(0);
+			} else if (round % 11 == 0) {
+				sendPingToMainBoard(1);
+			}
 			
-			sendPingToMainBoard();
 			if (isMainBoardLost()) {
 				//shutdownAllChannel();
 				isMainBoardConnected = false;			

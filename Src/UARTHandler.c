@@ -12,11 +12,12 @@ int isCorrectCommandFromMB(char * command) {
 				 (*(command+4) == '$') &&
 				 (*(command+6) == '$');
 }
-
+int count2 = 0;
 void processMainBoardCommand(char * command, UartInterface * sender) {
 	
-	debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
+	//debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
 	if (isCorrectCommandFromMB(command)) {
+		debugMessage("command[%d]: %s\n", count2, command);
 		UartInterface * uartInterface;
 		
 		if (command[1] == '0') {
@@ -28,12 +29,13 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 		char * subCommand = command + 2;
 		sendToUART(uartInterface, subCommand);
 		sendToUART(uartInterface, "\n");
+		count2++;
 	}
 	
 }
 
 void processMainBoardResponse(char * response, UartInterface * sender) {
-	debugMessage("GotResponseFromMB: %s\n", response);
+	//debugMessage("GotResponseFromMB: %s\n", response);
 	
 	if (strcmp(response, "#PONG#") == 0) {
 		if (!isMainBoardConnected) {
@@ -54,11 +56,16 @@ int getWhichTestBoard(UartInterface * sender) {
 	return -1;
 }
 
+int count = 0;
+
 void processTestBoardResponse(char * response, UartInterface * sender) {
 	int whichTestBoard = getWhichTestBoard(sender);
+	debugMessage("response[%d]: %s\n", count, response);
 	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
 	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
 		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
+	} else {
+		count++;
 	}
 }
 

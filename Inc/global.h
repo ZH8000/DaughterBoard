@@ -4,7 +4,7 @@
 #include "UARTHelper.h"
 #include <stdbool.h>
 
-#define MAIN_BOARD_LOST_THRESHOLD		1
+#define MAIN_BOARD_LOST_THRESHOLD		3
 #define DEBUG												1
 #define DEBUG_UART									(&uartInterfaces[0])
 #define BAUD_RATE										9600
