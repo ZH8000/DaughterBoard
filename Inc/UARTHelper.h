@@ -10,10 +10,10 @@ typedef struct {
 	uint8_t rxBuffer;
 	int bufferCounter;
 	char buffer[100];
-	char content[100];
-	bool shouldProcessContent;
-	uint32_t busyCount;
-	uint32_t receivedBytes;
+	bool hasData[30];
+	char buffer2[30][100];
+	int writeCounter;
+	int readCounter;
 } UartInterface;
 
 typedef void (*UartContentCallback)(UartInterface *, char *);

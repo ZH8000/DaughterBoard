@@ -35,6 +35,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include "global.h"
 #include "stm32f4xx_hal.h"
 #include "UARTHelper.h"
@@ -124,10 +125,14 @@ void initUART(void) {
 	namedUARTInterface.testBoard1 = &uartInterfaces[5];
 	
 	for (int i = 0; i < 8; i++) {
-		uartInterfaces[i].busyCount = 0;
-		uartInterfaces[i].receivedBytes = 0;
+		uartInterfaces[i].readCounter = 0;
+		uartInterfaces[i].writeCounter = 0;
 		memset(uartInterfaces[i].buffer, 0, 100);
-		memset(uartInterfaces[i].content, 0, 100);
+		for (int j = 0; j < 30; j++) {
+			uartInterfaces[i].hasData[j] = false;
+			//uartInterfaces[i].buffer2[j] = malloc(sizeof(char) * 100);
+			memset(uartInterfaces[i].buffer2[j], 0, 100);
+		}
 	}
 	
 }
@@ -199,20 +204,7 @@ int main(void)
 		uint32_t round = tick / 1000;
 		
 		if (lastTime != round) {
-			/*
-			debugMessage(
-				"mainBoard [%d] {receivedBytes: %u, busyCount: %u}\n", 
-				round, namedUARTInterface.mainBoard->receivedBytes, namedUARTInterface.mainBoard->busyCount
-			);
-			debugMessage(
-				"testBoard0[%d] {receivedBytes: %u, busyCount: %u}\n", 
-				round, namedUARTInterface.testBoard0->receivedBytes, namedUARTInterface.testBoard0->busyCount
-			);
-			debugMessage(
-				"testBoard1[%d] {receivedBytes: %u, busyCount: %u}\n", 
-				round, namedUARTInterface.testBoard1->receivedBytes, namedUARTInterface.testBoard1->busyCount
-			);
-			*/
+			
 			if (round % 2 == 0) {
 				sendPingToMainBoard(0);
 			} else {
