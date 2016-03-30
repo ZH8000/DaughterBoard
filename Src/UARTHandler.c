@@ -27,8 +27,8 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 		}
 		
 		char * subCommand = command + 2;
-		sendToUART(uartInterface, subCommand);
-		sendToUART(uartInterface, "\n");
+		HAL_StatusTypeDef status = sendToUART(uartInterface, "%s\n", subCommand);
+		debugMessage("command=%s, status=%d\n", subCommand, status);
 		count2++;
 	}
 	

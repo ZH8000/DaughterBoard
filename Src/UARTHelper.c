@@ -4,18 +4,20 @@
 #include "UARTHelper.h"
 
 void processUARTContent(UartContentCallback callback) {
-
+	char message[100] = {0};
 	for (int i = 0; i < 8; i++) {
 		UartInterface * uartInterface = &uartInterfaces[i];
 		if (uartInterface->shouldProcessContent) {			
-			callback(uartInterface, uartInterface->content);			
+			memset(message, 0, 100);
+			strncpy(message, uartInterface->content, 100);
+			callback(uartInterface, message);			
 			uartInterface->shouldProcessContent = false;			
 			memset(uartInterface->content, 0, 100);
 		}
 
 	}
 }
-
+bool txDoneFlag = false;
 void debugMessage(char * format, ...) {
 	#ifdef DEBUG
 		char message[100] = {0};
@@ -23,17 +25,17 @@ void debugMessage(char * format, ...) {
 		va_start(argptr,format);
 		vsnprintf(message, 100, format, argptr);
 		va_end(argptr);
-		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), 100);		
+		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), 1000);		
 	#endif
 }
 
-void sendToUART(UartInterface * uartInterface, char * format, ...) {
+HAL_StatusTypeDef sendToUART(UartInterface * uartInterface, char * format, ...) {
 	char message[100] = {0};
 	va_list argptr;
 	va_start(argptr,format);
 	vsnprintf(message, 100, format, argptr);
 	va_end(argptr);
-	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);		
+	return HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 1000);		
 }
 
 

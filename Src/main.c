@@ -213,9 +213,9 @@ int main(void)
 				round, namedUARTInterface.testBoard1->receivedBytes, namedUARTInterface.testBoard1->busyCount
 			);
 			*/
-			if (round % 10 == 0) {
+			if (round % 2 == 0) {
 				sendPingToMainBoard(0);
-			} else if (round % 11 == 0) {
+			} else {
 				sendPingToMainBoard(1);
 			}
 			
