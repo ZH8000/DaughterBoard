@@ -3,6 +3,8 @@
 
 #include "stm32f4xx_hal.h"
 #include <stdbool.h>
+#define CONTENT_QUEUE_NUM		30
+#define CONTENT_QUEUE_SIZE		100
 
 
 typedef struct {
@@ -10,8 +12,8 @@ typedef struct {
 	uint8_t rxBuffer;
 	int bufferCounter;
 	char buffer[100];
-	bool hasData[30];
-	char buffer2[30][100];
+	bool hasData[CONTENT_QUEUE_NUM];
+	char content[CONTENT_QUEUE_NUM][CONTENT_QUEUE_SIZE];
 	int writeCounter;
 	int readCounter;
 } UartInterface;
@@ -24,6 +26,8 @@ void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance
 HAL_StatusTypeDef sendToUART(UartInterface * uartInterface, char * format, ...);
 void debugMessage(char * format, ...);
 void processUARTContent(UartContentCallback callback);
+void initUARTInterface(UartInterface * uartInterface);
+
 extern UartInterface * getUARTInterface(UART_HandleTypeDef *huart);
 
 #endif

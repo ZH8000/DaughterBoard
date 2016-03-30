@@ -3,18 +3,28 @@
 #include "global.h"
 #include "UARTHelper.h"
 
+void initUARTInterface(UartInterface * uartInterface) {
+	uartInterface->readCounter = 0;
+	uartInterface->writeCounter = 0;
+	for (int j = 0; j < CONTENT_QUEUE_NUM; j++) {
+		uartInterface->hasData[j] = false;
+		memset(uartInterface->content[j], 0, CONTENT_QUEUE_SIZE);
+	}
+	
+}
+
 void processUARTContent(UartContentCallback callback) {
-	char message[100] = {0};
+	char message[CONTENT_QUEUE_SIZE] = {0};
 	
 	for (int i = 0; i < 8; i++) {
 		UartInterface * uartInterface = &uartInterfaces[i];
 		
 		if (uartInterface->hasData[uartInterface->readCounter]) {
-			memset(message, 0, 100);
-			strncpy(message, (char *) uartInterface->buffer2[uartInterface->readCounter], 100);
+			memset(message, 0, CONTENT_QUEUE_SIZE);
+			strncpy(message, (char *) uartInterface->content[uartInterface->readCounter], CONTENT_QUEUE_SIZE);
 			callback(uartInterface, message);
 			uartInterface->hasData[uartInterface->readCounter] = false;
-			uartInterface->readCounter = (uartInterface->readCounter+1) % 30;
+			uartInterface->readCounter = (uartInterface->readCounter+1) % CONTENT_QUEUE_NUM;
 		}
 
 	}
@@ -22,22 +32,22 @@ void processUARTContent(UartContentCallback callback) {
 
 void debugMessage(char * format, ...) {
 	#ifdef DEBUG
-		char message[100] = {0};
+		char message[CONTENT_QUEUE_SIZE] = {0};
 		va_list argptr;
 		va_start(argptr,format);
-		vsnprintf(message, 100, format, argptr);
+		vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
 		va_end(argptr);
-		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), 1000);		
+		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), CONTENT_QUEUE_SIZE);		
 	#endif
 }
 
 HAL_StatusTypeDef sendToUART(UartInterface * uartInterface, char * format, ...) {
-	char message[100] = {0};
+	char message[CONTENT_QUEUE_SIZE] = {0};
 	va_list argptr;
 	va_start(argptr,format);
-	vsnprintf(message, 100, format, argptr);
+	vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
 	va_end(argptr);
-	return HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 1000);		
+	return HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), CONTENT_QUEUE_SIZE);		
 }
 
 
@@ -63,12 +73,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		if (receiveChar == '\n') {
 			
 			int currentWriteCount = uartInterface->writeCounter;
-			memset(uartInterface->buffer2[currentWriteCount], 0, 100);
-			strncpy((char *)uartInterface->buffer2[currentWriteCount], uartInterface->buffer, 100);
+			memset(uartInterface->content[currentWriteCount], 0, CONTENT_QUEUE_SIZE);
+			strncpy((char *)uartInterface->content[currentWriteCount], uartInterface->buffer, CONTENT_QUEUE_SIZE);
 			uartInterface->hasData[currentWriteCount] = true;
-			uartInterface->writeCounter = (currentWriteCount + 1) % 30;
+			uartInterface->writeCounter = (currentWriteCount + 1) % CONTENT_QUEUE_NUM;
 			
-			memset(uartInterface->buffer, 0, 100);
+			memset(uartInterface->buffer, 0, CONTENT_QUEUE_SIZE);
 			uartInterface->bufferCounter = 0;
 		} else {
 			uartInterface->buffer[uartInterface->bufferCounter] = receiveChar;

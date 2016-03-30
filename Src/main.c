@@ -125,14 +125,7 @@ void initUART(void) {
 	namedUARTInterface.testBoard1 = &uartInterfaces[5];
 	
 	for (int i = 0; i < 8; i++) {
-		uartInterfaces[i].readCounter = 0;
-		uartInterfaces[i].writeCounter = 0;
-		memset(uartInterfaces[i].buffer, 0, 100);
-		for (int j = 0; j < 30; j++) {
-			uartInterfaces[i].hasData[j] = false;
-			//uartInterfaces[i].buffer2[j] = malloc(sizeof(char) * 100);
-			memset(uartInterfaces[i].buffer2[j], 0, 100);
-		}
+		initUARTInterface(&uartInterfaces[i]);
 	}
 	
 }
