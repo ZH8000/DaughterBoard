@@ -3,6 +3,9 @@
 #include "global.h"
 #include "UARTHelper.h"
 
+
+static volatile bool txDoneFlag = false;
+
 void initUARTInterface(UartInterface * uartInterface) {
 	uartInterface->readCounter = 0;
 	uartInterface->writeCounter = 0;
@@ -37,17 +40,26 @@ void debugMessage(char * format, ...) {
 		va_start(argptr,format);
 		vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
 		va_end(argptr);
-		HAL_UART_Transmit(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message), CONTENT_QUEUE_SIZE);		
+		txDoneFlag = false;		
+		HAL_UART_Transmit_IT(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message));		
+		while(!txDoneFlag) {}
 	#endif
 }
 
-HAL_StatusTypeDef sendToUART(UartInterface * uartInterface, char * format, ...) {
+
+void sendToUART(UartInterface * uartInterface, char * format, ...) {
 	char message[CONTENT_QUEUE_SIZE] = {0};
 	va_list argptr;
 	va_start(argptr,format);
 	vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
 	va_end(argptr);
-	return HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), CONTENT_QUEUE_SIZE);		
+	txDoneFlag = false;			
+	HAL_UART_Transmit_IT(&uartInterface->uartHandler, (uint8_t *) message, strlen(message));
+	while(!txDoneFlag) {}	
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+	txDoneFlag = true;
 }
 
 

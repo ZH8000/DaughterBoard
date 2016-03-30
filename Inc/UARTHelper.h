@@ -23,7 +23,7 @@ typedef void (*UartContentCallback)(UartInterface *, char *);
 void startUARTReceiveDMA(UartInterface * interface);
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance, int baudRate);
-HAL_StatusTypeDef sendToUART(UartInterface * uartInterface, char * format, ...);
+void sendToUART(UartInterface * uartInterface, char * format, ...);
 void debugMessage(char * format, ...);
 void processUARTContent(UartContentCallback callback);
 void initUARTInterface(UartInterface * uartInterface);
