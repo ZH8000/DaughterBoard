@@ -1,113 +1,102 @@
-#include "UARTHelper.h"
 #include <string.h>
+#include <stdarg.h>
+#include "global.h"
+#include "UARTHelper.h"
 
-extern UartInterface * getUARTInterface(UART_HandleTypeDef *huart, int * whichUART);
-extern UartInterface uartInterfaces[8];
-extern NamedUARTInterface namedUARTInterface;
 
-void sendToUART(UartInterface * uartInterface, char * message) {
-	HAL_UART_Transmit(&uartInterface->uartHandler, (uint8_t *) message, strlen(message), 100);	
-}
+static volatile bool txDoneFlag = false;
 
-int isCorrectCommandFromMB(char * command) {
-	return strlen(command) == 9 &&
-				 (*(command+0) == '$') &&
-				 (*(command+1) == '0' || *(command+1) == '1') &&
-				 (*(command+2) == '$') &&
-				 (*(command+3) == '0' || *(command+1) == '1') &&
-				 (*(command+4) == '$') &&
-				 (*(command+6) == '$') &&
-				 (*(command+8) == '$');
-}
-
-void processMainBoardCommand(char * command, UartInterface * sender) {
+void initUARTInterface(UartInterface * uartInterface) {
+	uartInterface->readCounter = 0;
+	uartInterface->writeCounter = 0;
+	for (int j = 0; j < CONTENT_QUEUE_NUM; j++) {
+		uartInterface->hasData[j] = false;
+		memset(uartInterface->content[j], 0, CONTENT_QUEUE_SIZE);
+	}
 	
-	if (isCorrectCommandFromMB(command)) {
-		UartInterface * uartInterface;
+}
+
+void processUARTContent(UartContentCallback callback) {
+	char message[CONTENT_QUEUE_SIZE] = {0};
+	
+	for (int i = 0; i < 8; i++) {
+		UartInterface * uartInterface = &uartInterfaces[i];
 		
-		if (command[1] == '0' && command[3] == '0') {
-			uartInterface = namedUARTInterface.testBoard0MCU0;
-		} else if (command[1] == '0' && command[3] == '1') {
-			uartInterface = namedUARTInterface.testBoard0MCU1;
-		} else if (command[1] == '1' && command[2] == '0') {
-			uartInterface = namedUARTInterface.testBoard1MCU0;
-		}else if (command[1] == '1' && command[2] == '1') {
-			uartInterface = namedUARTInterface.testBoard1MCU1;
+		if (uartInterface->hasData[uartInterface->readCounter]) {
+			memset(message, 0, CONTENT_QUEUE_SIZE);
+			strncpy(message, (char *) uartInterface->content[uartInterface->readCounter], CONTENT_QUEUE_SIZE);
+			callback(uartInterface, message);
+			uartInterface->hasData[uartInterface->readCounter] = false;
+			uartInterface->readCounter = (uartInterface->readCounter+1) % CONTENT_QUEUE_NUM;
 		}
-		
-		char * subCommand = command + 4;
-		sendToUART(uartInterface, subCommand);
-		sendToUART(uartInterface, "\n");
+
 	}
+}
+
+void debugMessage(char * format, ...) {
+	#ifdef DEBUG
+		char message[CONTENT_QUEUE_SIZE] = {0};
+		va_list argptr;
+		va_start(argptr,format);
+		vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
+		va_end(argptr);
+		txDoneFlag = false;		
+		HAL_UART_Transmit_IT(&DEBUG_UART->uartHandler, (uint8_t *) message, strlen(message));		
+		while(!txDoneFlag) {}
+	#endif
+}
+
+
+void sendToUART(UartInterface * uartInterface, char * format, ...) {
+	char message[CONTENT_QUEUE_SIZE] = {0};
+	va_list argptr;
+	va_start(argptr,format);
+	vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
+	va_end(argptr);
+	txDoneFlag = false;			
+	HAL_UART_Transmit_IT(&uartInterface->uartHandler, (uint8_t *) message, strlen(message));
+	while(!txDoneFlag) {}	
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+	txDoneFlag = true;
+}
+
+
+void startUARTReceiveDMA(UartInterface * uartInterface) {
+	int retries = 0;
+	HAL_StatusTypeDef status = HAL_UART_Receive_DMA(&(uartInterface->uartHandler), &(uartInterface->rxBuffer), 1);
 	
-}
-
-void getWhichTestBoard(UartInterface * sender, int * whichTestBoard, int * whichMCU) {
-	if (sender == namedUARTInterface.testBoard0MCU0) {
-		*whichTestBoard = 0;
-		*whichMCU = 0;
-	} else if (sender == namedUARTInterface.testBoard0MCU1) {
-		*whichTestBoard = 0;
-		*whichMCU = 1;		
-	} else if (sender == namedUARTInterface.testBoard1MCU0) {
-		*whichTestBoard = 1;
-		*whichMCU = 0;		
-	}	else if (sender == namedUARTInterface.testBoard1MCU1) {
-		*whichTestBoard = 1;
-		*whichMCU = 1;		
+	while (status != HAL_OK && retries < 10) {
+		HAL_UART_DeInit(&(uartInterface->uartHandler));
+		HAL_UART_Init(&(uartInterface->uartHandler));
+		status = HAL_UART_Receive_DMA(&(uartInterface->uartHandler), &(uartInterface->rxBuffer), 1);
 	}
-}
-
-void processTestBoardCommand(char * command, UartInterface * sender) {
-	int whichTestBoard = -1;
-	int whichMCU = -1;
-	getWhichTestBoard(sender, &whichTestBoard, &whichMCU);
-	char message[100] = {0};
-	memset(message, 0, 100);
-	sprintf(message, "#%d#%d%s\r\n", whichTestBoard, whichMCU, command);
-	HAL_UART_Transmit(&namedUARTInterface.mainBoard->uartHandler, (uint8_t *) &message, strlen(message), 100);		
-}
-
-void startUARTReceiveDMA(UartInterface * interface) {
-	HAL_UART_Receive_DMA(&(interface->uartHandler), &(interface->rxBuffer), 1);	
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	
-	//__HAL_UART_FLUSH_DRREGISTER(huart);
-	uint8_t receiveChar = *(huart->pRxBuffPtr);
-	int whichUART;
-	
-	UartInterface * uartInterface = getUARTInterface(huart, &whichUART);
+	UartInterface * uartInterface = getUARTInterface(huart);
 	
 	if (uartInterface != NULL) {
-		if (receiveChar == '\r') {
-			// Ingore CR
-		} else if (receiveChar == '\n') {
+		
+		uint8_t receiveChar = *(huart->pRxBuffPtr);
+		
+		if (receiveChar == '\n') {
 			
-			int isMainBoard = uartInterface == namedUARTInterface.mainBoard;
-			int isTestBoard = 
-				(uartInterface == namedUARTInterface.testBoard0MCU0) || 
-				(uartInterface == namedUARTInterface.testBoard0MCU1) || 
-				(uartInterface == namedUARTInterface.testBoard1MCU0) || 
-				(uartInterface == namedUARTInterface.testBoard1MCU1);
+			int currentWriteCount = uartInterface->writeCounter;
+			memset(uartInterface->content[currentWriteCount], 0, CONTENT_QUEUE_SIZE);
+			strncpy((char *)uartInterface->content[currentWriteCount], uartInterface->buffer, CONTENT_QUEUE_SIZE);
+			uartInterface->hasData[currentWriteCount] = true;
+			uartInterface->writeCounter = (currentWriteCount + 1) % CONTENT_QUEUE_NUM;
 			
-			if (isMainBoard) {
-				processMainBoardCommand(uartInterface->buffer, uartInterface);
-			} else if (isTestBoard) {
-				processTestBoardCommand(uartInterface->buffer, uartInterface);				
-			}
-			
-			memset(uartInterface->buffer, 0, 100);
+			memset(uartInterface->buffer, 0, CONTENT_QUEUE_SIZE);
 			uartInterface->bufferCounter = 0;
-			uartInterface->commandCount++;
 		} else {
 			uartInterface->buffer[uartInterface->bufferCounter] = receiveChar;
 			uartInterface->bufferCounter++;
 		}
 	}
-
-	HAL_UART_Receive_DMA(huart, huart->pRxBuffPtr, 1);	
 }
 
 void MX_UART_Init(UART_HandleTypeDef * uartHandler, USART_TypeDef * uartInstance, int baudRate)

@@ -31,9 +31,15 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx_hal.h"
 #include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include "global.h"
+#include "stm32f4xx_hal.h"
 #include "UARTHelper.h"
+#include "UARTHandler.h"
 
 
 /* Private variables ---------------------------------------------------------*/
@@ -52,41 +58,76 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void initUART(void);
 
-UartInterface uartInterfaces[8];
-NamedUARTInterface namedUARTInterface;
+void sendPingToMainBoard(int i) {
+	sendToUART(namedUARTInterface.mainBoard, "$PING$%d$%d$%s$\n", i, testBoardStatus[i].isInserted, testBoardStatus[i].uuid);
+}
 
-typedef struct {
-	GPIO_PinState isInserted;
-	char uuid[36];
-} TestBoardStatus;
 
-TestBoardStatus testBoardStatus[2];
+bool isMainBoardLost() {
+	int32_t currentTick = HAL_GetTick();
+	int32_t duration = currentTick - lastMainBoardResponseTick;
+	
+	// 如果 duration 大於 currentTick，代表 HAL_GetTick() 發生了 overflow，超過了
+	// 32bit 無號整數的最大值，計算的方法為先算出 32bit 無號整數的最大值 4294967295
+	// 離 lastMainBoardResponseTick 有多遠，再加上從 overflow 發生的時間點到現在經
+	// 過了多少個 Tick。
+	if (duration > currentTick) {
+		duration = 4294967295 - currentTick + duration;
+	}
+	
+	/*
+	debugMessage(
+		"currentTick(%u) - lastTick(%u) = %d / %d\n", 
+		currentTick, 
+		lastMainBoardResponseTick, 
+		duration, 
+		MAIN_BOARD_LOST_THRESHOLD * 60 * 1000
+	);
+	*/
+	
+	return duration > MAIN_BOARD_LOST_THRESHOLD * 60 * 1000;
+}
+
+void shutdownAllChannel() {
+	
+	if (isMainBoardConnected) {
+		debugMessage("SHUT DOWN ALL CHANNEL\n");
+		HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin|TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
+	}
+}
 
 void initTestBoardStatus() {
-	testBoardStatus[0].isInserted = GPIO_PIN_RESET;
-	testBoardStatus[1].isInserted = GPIO_PIN_RESET;
+	testBoardStatus[0].isInserted = false;
+	testBoardStatus[1].isInserted = false;
+	testBoardStatus[0].isHVOK = false;
+	testBoardStatus[1].isHVOK = false;
 	memset(testBoardStatus[0].uuid, 0, 36);
 	memset(testBoardStatus[1].uuid, 0, 36);
 }
 
+
 void initUART(void) {
-	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, 9600);
-	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, 9600);
-	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, 9600);
-	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  9600);
-	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  9600);
-	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, 9600);
-	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  9600);
-	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  9600);
+	MX_UART_Init(&(uartInterfaces[0].uartHandler), USART1, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[1].uartHandler), USART2, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[2].uartHandler), USART3, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[3].uartHandler), UART4,  BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[4].uartHandler), UART5,  BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[5].uartHandler), USART6, BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[6].uartHandler), UART7,  BAUD_RATE);
+	MX_UART_Init(&(uartInterfaces[7].uartHandler), UART8,  BAUD_RATE);
 	
 	// Define Named UART
-	//namedUARTInterface.mainBoard = &uartInterfaces[1];
-	namedUARTInterface.mainBoard = &uartInterfaces[0];
+	//namedUARTInterface.mainBoard = &uartInterfaces[0];
+	namedUARTInterface.mainBoard = &uartInterfaces[1];
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
-	namedUARTInterface.testBoard0MCU0 = &uartInterfaces[2];
-	namedUARTInterface.testBoard0MCU1 = &uartInterfaces[4];
-	namedUARTInterface.testBoard1MCU0 = &uartInterfaces[6];
-	namedUARTInterface.testBoard1MCU1 = &uartInterfaces[7];
+	namedUARTInterface.testBoard0 = &uartInterfaces[2];
+	namedUARTInterface.testBoard1 = &uartInterfaces[5];
+	
+	for (int i = 0; i < 8; i++) {
+		initUARTInterface(&uartInterfaces[i]);
+	}
+	
 }
 
 
@@ -98,22 +139,14 @@ void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestB
 		testBoardStatus[whichTestBoard].isInserted = newState;
 
 		if (newState == GPIO_PIN_SET) {
-			#ifdef DEBUG
-			char message[100] = {0};
-			sprintf(message, "TestBoard[%d] plugged...\r\n", whichTestBoard);
-			sendToUART(namedUARTInterface.mainBoard, message);
-			#endif
+			debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
 			if (whichTestBoard == 0) {
-				sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
+				sendToUART(namedUARTInterface.testBoard0, "$f$$$\n");
 			} else if (whichTestBoard == 1) {
-				sendToUART(namedUARTInterface.testBoard1MCU0, "$f$$$\n");				
+				sendToUART(namedUARTInterface.testBoard1, "$f$$$\n");				
 			}
 		} else if (newState == GPIO_PIN_RESET) {
-			#ifdef DEBUG
-			char message[100] = {0};
-			sprintf(message, "TestBoard[%d] unplugged...\r\n", whichTestBoard);
-			sendToUART(namedUARTInterface.mainBoard, message);
-			#endif
+			debugMessage("TestBoard[%d] unplugged...\n", whichTestBoard);
 			memset(testBoardStatus[whichTestBoard].uuid, 0, 36);
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.mainBoard, "#0#g###\n");
@@ -150,57 +183,38 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
 	/*	Infinite loop */
+	HAL_GPIO_WritePin(GPIOD, TB0_15V_Pin|TB1_15V_Pin, GPIO_PIN_SET);
 	HAL_Delay(1000);
+	uint32_t lastTime = 0;
+	
   while (1)
   {
-		//sendToUART(namedUARTInterface.testBoard0MCU0, "$f$$$\n");
-		
+		processUARTContent(uartReceiverCallback);
 		checkTestBoardStatus(TB0_DETECT_GPIO_Port, TB0_DETECT_Pin, 0);
-		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);
+		checkTestBoardStatus(TB1_DETECT_GPIO_Port, TB1_DETECT_Pin, 1);	
+
+		uint32_t tick = HAL_GetTick();
+		uint32_t round = tick / 1000;
 		
-		HAL_Delay(1000);
+		if (lastTime != round) {
+			
+			if (round % 2 == 0) {
+				sendPingToMainBoard(0);
+			} else {
+				sendPingToMainBoard(1);
+			}
+			
+			if (isMainBoardLost()) {
+				//shutdownAllChannel();
+				isMainBoardConnected = false;			
+			}
+		}
+		lastTime = round;		
   }
 
 }
 
 
-UartInterface * getUARTInterface(UART_HandleTypeDef *huart, int * whichUART) {
-	if (huart == &(uartInterfaces[0].uartHandler)) {
-		*whichUART = 1;
-		return &(uartInterfaces[0]);
-	}
-	else if (huart == &(uartInterfaces[1].uartHandler)) {
-		*whichUART = 2;
-		return &(uartInterfaces[1]);
-	}
-	else if (huart == &(uartInterfaces[2].uartHandler)) {
-		*whichUART = 3;
-		return &(uartInterfaces[2]);
-	}
-	else if (huart == &(uartInterfaces[3].uartHandler)) {
-		*whichUART = 4;
-		return &(uartInterfaces[3]);
-	}
-	else if (huart == &(uartInterfaces[4].uartHandler)) {
-		*whichUART = 5;
-		return &(uartInterfaces[4]);
-	}
-	else if (huart == &(uartInterfaces[5].uartHandler)) {
-		*whichUART = 6;
-		return &(uartInterfaces[5]);
-	}
-	else if (huart == &(uartInterfaces[6].uartHandler)) {
-		*whichUART = 7;		
-		return &(uartInterfaces[6]);
-	}
-	else if (huart == &(uartInterfaces[7].uartHandler)) {
-		*whichUART = 8;				
-		return &(uartInterfaces[7]);
-	} else {
-		*whichUART = -1;						
-		return NULL;
-	}
-}
 	
 /** System Clock Configuration
 */
@@ -287,11 +301,11 @@ void MX_GPIO_Init(void)
   __GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
-                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_SET);
+                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : TB0_LCR_Pin TB1_LCR_Pin */
   GPIO_InitStruct.Pin = TB0_LCR_Pin|TB1_LCR_Pin;
@@ -330,7 +344,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
-    ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    ex: printf("Wrong parameters value: file %s on line %d\n", file, line) */
   /* USER CODE END 6 */
 
 }
