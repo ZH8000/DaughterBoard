@@ -12,12 +12,10 @@ int isCorrectCommandFromMB(char * command) {
 				 (*(command+4) == '$') &&
 				 (*(command+6) == '$');
 }
-int count2 = 0;
 void processMainBoardCommand(char * command, UartInterface * sender) {
 	
 	//debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
 	if (isCorrectCommandFromMB(command)) {
-		debugMessage("command[%d]: %s\n", count2, command);
 		UartInterface * uartInterface;
 		
 		if (command[1] == '0') {
@@ -28,8 +26,6 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 		
 		char * subCommand = command + 2;
 		HAL_StatusTypeDef status = sendToUART(uartInterface, "%s\n", subCommand);
-		debugMessage("command=%s, status=%d\n", subCommand, status);
-		count2++;
 	}
 	
 }
@@ -60,7 +56,7 @@ int count = 0;
 
 void processTestBoardResponse(char * response, UartInterface * sender) {
 	int whichTestBoard = getWhichTestBoard(sender);
-	debugMessage("response[%d]: %s\n", count, response);
+	debugMessage("respond[%d]: %s\n", count, response);
 	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
 	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
 		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		

@@ -12,7 +12,6 @@ void processUARTContent(UartContentCallback callback) {
 		if (uartInterface->hasData[uartInterface->readCounter]) {
 			memset(message, 0, 100);
 			strncpy(message, (char *) uartInterface->buffer2[uartInterface->readCounter], 100);
-			//debugMessage("Processed[w: %d, r:%d] = %s\n", uartInterface->writeCounter, uartInterface->readCounter, message);
 			callback(uartInterface, message);
 			uartInterface->hasData[uartInterface->readCounter] = false;
 			uartInterface->readCounter = (uartInterface->readCounter+1) % 30;
@@ -20,7 +19,7 @@ void processUARTContent(UartContentCallback callback) {
 
 	}
 }
-bool txDoneFlag = false;
+
 void debugMessage(char * format, ...) {
 	#ifdef DEBUG
 		char message[100] = {0};
@@ -55,7 +54,6 @@ void startUARTReceiveDMA(UartInterface * uartInterface) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	
-	//__HAL_UART_FLUSH_DRREGISTER(huart);
 	UartInterface * uartInterface = getUARTInterface(huart);
 	
 	if (uartInterface != NULL) {
@@ -76,7 +74,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 			uartInterface->buffer[uartInterface->bufferCounter] = receiveChar;
 			uartInterface->bufferCounter++;
 		}
-		startUARTReceiveDMA(uartInterface);	
 	}
 }
 
