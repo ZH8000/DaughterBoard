@@ -16,15 +16,49 @@ void processMainBoardCommand(char * command, UartInterface * sender) {
 	
 	//debugMessage("MBCommand: %s, isCorrectCommandFromMB: %d\n", command, isCorrectCommandFromMB(command));
 	if (isCorrectCommandFromMB(command)) {
+		
+		int whichTB = -1;		
 		UartInterface * uartInterface;
 		
 		if (command[1] == '0') {
 			uartInterface = namedUARTInterface.testBoard0;
+			whichTB = 0;
 		} else if (command[1] == '1') {
 			uartInterface = namedUARTInterface.testBoard1;
+			whichTB = 1;
 		}
 		
 		char * subCommand = command + 2;
+		debugMessage("subCommand:%s\n", subCommand);
+		
+		char commandCode = subCommand[1];
+		
+		GPIO_PinState newPinState = GPIO_PIN_RESET;
+		uint16_t lcrPin = 0;
+		uint16_t lcPin = 0;
+		uint16_t hvPin = 0;
+		
+		switch(commandCode) {
+			case 'a':
+				lcrPin = whichTB == 0 ? TB0_LCR_Pin : TB1_LCR_Pin;
+				newPinState = subCommand[3] == '0' ? GPIO_PIN_RESET : GPIO_PIN_SET;
+				debugMessage("PULL LCR PIN[%d] to: %d\n", lcrPin, newPinState);
+				HAL_GPIO_WritePin(TB0_LCR_GPIO_Port, lcrPin, newPinState);
+				break;
+			case 'b':
+				lcPin = whichTB == 0 ? TB0_LC_Pin : TB1_LC_Pin;
+				newPinState = subCommand[3] == '0' ? GPIO_PIN_RESET : GPIO_PIN_SET;
+				debugMessage("PULL LC PIN[%d] to: %d\n", lcPin, newPinState);
+				HAL_GPIO_WritePin(TB0_LC_GPIO_Port, lcPin, newPinState);				
+				break;
+			case 'c':
+				hvPin = whichTB == 0 ? TB0_HV_Pin : TB1_HV_Pin;
+				newPinState = subCommand[3] == '0' ? GPIO_PIN_RESET : GPIO_PIN_SET;
+				debugMessage("PULL HV PIN[%d] to: %d\n", hvPin, newPinState);
+				HAL_GPIO_WritePin(TB0_HV_GPIO_Port, hvPin, newPinState);				
+				break;
+		}
+		
 		sendToUART(uartInterface, "%s\n", subCommand);
 	}
 	

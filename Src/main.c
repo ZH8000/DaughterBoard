@@ -170,7 +170,7 @@ int main(void)
   SystemClock_Config();
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
+  MX_GPIO_Init();	
   MX_DMA_Init();
 	initTestBoardStatus();
 	initUART();
@@ -182,8 +182,11 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[5]);
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
-	/*	Infinite loop */
+	
+	// Warning: MUST PULL-UP after UART DMA is initialized. Or UART will not work!!!!!
 	HAL_GPIO_WritePin(GPIOD, TB0_15V_Pin|TB1_15V_Pin, GPIO_PIN_SET);
+	
+	/*	Infinite loop */
 	HAL_Delay(1000);
 	uint32_t lastTime = 0;
 	
@@ -301,11 +304,13 @@ void MX_GPIO_Init(void)
   __GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, TB0_15V_Pin|TB1_15V_Pin, GPIO_PIN_RESET);
+	
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin 
-                          |TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : TB0_LCR_Pin TB1_LCR_Pin */
   GPIO_InitStruct.Pin = TB0_LCR_Pin|TB1_LCR_Pin;
