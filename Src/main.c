@@ -93,7 +93,7 @@ void shutdownAllChannel() {
 	if (isMainBoardConnected) {
 		debugMessage("SHUT DOWN ALL CHANNEL\n");
 		HAL_GPIO_WritePin(GPIOB, TB0_LCR_Pin|TB1_LCR_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_15V_Pin|TB1_15V_Pin|TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOD, TB0_HV_Pin|TB1_HV_Pin|TB0_LC_Pin|TB1_LC_Pin, GPIO_PIN_RESET);
 	}
 }
 
@@ -121,7 +121,7 @@ void initUART(void) {
 	//namedUARTInterface.mainBoard = &uartInterfaces[0];
 	namedUARTInterface.mainBoard = &uartInterfaces[1];
 	//namedUARTInterface.testBoard0MCU0 = &uartInterfaces[3];
-	namedUARTInterface.testBoard0 = &uartInterfaces[2];
+	namedUARTInterface.testBoard0 = &uartInterfaces[3];
 	namedUARTInterface.testBoard1 = &uartInterfaces[5];
 	
 	for (int i = 0; i < 8; i++) {
@@ -133,13 +133,15 @@ void initUART(void) {
 
 void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestBoard) {
 	GPIO_PinState newState = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
-	
+		
 	if (newState != testBoardStatus[whichTestBoard].isInserted) {
 		
-		testBoardStatus[whichTestBoard].isInserted = newState;
+		if (!newState) {
+			testBoardStatus[whichTestBoard].isInserted = newState;
+		}
 
 		if (newState == GPIO_PIN_SET) {
-			debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
+			//debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.testBoard0, "$f$$$\n");
 			} else if (whichTestBoard == 1) {
@@ -170,10 +172,12 @@ int main(void)
   SystemClock_Config();
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();	
+  MX_GPIO_Init();		
   MX_DMA_Init();
+	
+	
 	initTestBoardStatus();
-	initUART();
+	initUART();	
 	startUARTReceiveDMA(&uartInterfaces[0]);
 	startUARTReceiveDMA(&uartInterfaces[1]);
 	startUARTReceiveDMA(&uartInterfaces[2]);
@@ -183,7 +187,7 @@ int main(void)
 	startUARTReceiveDMA(&uartInterfaces[6]);
 	startUARTReceiveDMA(&uartInterfaces[7]);
 	
-	// Warning: MUST PULL-UP after UART DMA is initialized. Or UART will not work!!!!!
+	// Warning: MUST PULL-UP after UART DMA Channel is initialized. Or UART will not work!!!!!
 	HAL_GPIO_WritePin(GPIOD, TB0_15V_Pin|TB1_15V_Pin, GPIO_PIN_SET);
 	
 	/*	Infinite loop */
@@ -200,7 +204,7 @@ int main(void)
 		uint32_t round = tick / 1000;
 		
 		if (lastTime != round) {
-			
+						
 			if (round % 2 == 0) {
 				sendPingToMainBoard(0);
 			} else {
@@ -320,10 +324,16 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : TB0_DETECT_Pin TB1_DETECT_Pin ADC_CLK_Pin ADC_DATAIN_Pin */
-  GPIO_InitStruct.Pin = TB0_DETECT_Pin|TB1_DETECT_Pin|ADC_CLK_Pin|ADC_DATAIN_Pin;
+  GPIO_InitStruct.Pin = ADC_CLK_Pin|ADC_DATAIN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = TB0_DETECT_Pin|TB1_DETECT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
 
   /*Configure GPIO pins : TB0_HV_Pin TB1_HV_Pin TB0_15V_Pin TB1_15V_Pin 
                            TB0_LC_Pin TB1_LC_Pin */

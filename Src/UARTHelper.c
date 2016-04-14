@@ -53,7 +53,7 @@ void sendToUART(UartInterface * uartInterface, char * format, ...) {
 	va_start(argptr,format);
 	vsnprintf(message, CONTENT_QUEUE_SIZE, format, argptr);
 	va_end(argptr);
-	txDoneFlag = false;			
+	txDoneFlag = false;
 	HAL_UART_Transmit_IT(&uartInterface->uartHandler, (uint8_t *) message, strlen(message));
 	while(!txDoneFlag) {}	
 }

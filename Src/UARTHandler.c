@@ -94,6 +94,9 @@ void processTestBoardResponse(char * response, UartInterface * sender) {
 	sendToUART(namedUARTInterface.mainBoard, "#%d%s\n", whichTestBoard, response);		
 	if (response[0] == '#' && response[1] == 'f' && response[2] == '#' && strlen(response) == 40) {
 		strncpy(testBoardStatus[whichTestBoard].uuid, response + 3, 36);		
+		testBoardStatus[whichTestBoard].isInserted = 1;
+		debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
+		
 	} else {
 		count++;
 	}
@@ -104,7 +107,10 @@ void uartReceiverCallback(UartInterface * uartInterface, char * content) {
 	bool isTestBoard = (uartInterface == namedUARTInterface.testBoard0) || (uartInterface == namedUARTInterface.testBoard1);
 	bool isCommand = strlen(content) > 1 && content[0] == '$';
 	bool isResponse = strlen(content) > 1 && content[0] == '#';
-						
+	
+	if (isTestBoard) {
+		debugMessage("Received: %s\n", content);
+	}
 	if (isMainBoard && isCommand) {
 		processMainBoardCommand(content, uartInterface);
 	} else if (isMainBoard && isResponse) {
