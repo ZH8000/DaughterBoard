@@ -132,16 +132,15 @@ void initUART(void) {
 
 
 void checkTestBoardStatus(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int whichTestBoard) {
-	GPIO_PinState newState = HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
-		
+	GPIO_PinState newState = !HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
+	//debugMessage("TestBoard22222[%d]: %d\n", whichTestBoard, newState);
 	if (newState != testBoardStatus[whichTestBoard].isInserted) {
 		
-		if (!newState) {
-			testBoardStatus[whichTestBoard].isInserted = newState;
-		}
+		testBoardStatus[whichTestBoard].isInserted = newState;
+		//debugMessage("TestBoard333[%d]: %d\n", whichTestBoard, newState);
 
 		if (newState == GPIO_PIN_SET) {
-			//debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
+			debugMessage("TestBoard[%d] plugged...\n", whichTestBoard);
 			if (whichTestBoard == 0) {
 				sendToUART(namedUARTInterface.testBoard0, "$f$$$\n");
 			} else if (whichTestBoard == 1) {
@@ -331,7 +330,7 @@ void MX_GPIO_Init(void)
 
   GPIO_InitStruct.Pin = TB0_DETECT_Pin|TB1_DETECT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 
